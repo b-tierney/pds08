@@ -5,7 +5,8 @@
 library(tidyverse)
 library(vegan)
 
-setwd('/Volumes/GoogleDrive-109433674545306273960/My\ Drive/pds08')
+#setwd('/Volumes/GoogleDrive-109433674545306273960/My\ Drive/pds08')
+setwd('~/Desktop/gdrive/pds08')
 
 args <- commandArgs(trailingOnly = TRUE)
 

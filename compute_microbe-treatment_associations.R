@@ -5,7 +5,8 @@
 library(tidyverse)
 library(broom)
 
-setwd('/Volumes/GoogleDrive-109433674545306273960/My\ Drive/pds08')
+#setwd('/Volumes/GoogleDrive-109433674545306273960/My\ Drive/pds08')
+setwd('~/Desktop/gdrive/pds08')
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -23,7 +24,7 @@ abundance_data = readRDS(abundance_data_file)
 microbiome_vars = abundance_data %>% select(-Sample_ID) %>% colnames
 
 # run log transform if not looking at deltas
-if(!grepl('delta',abundance_data_file) | grepl('diversity',abundance_data_file)){
+if(!grepl('delta',abundance_data_file) & !grepl('diversity',abundance_data_file)){
 	abundance_data = abundance_data %>% mutate_if(is.numeric,function(x) log(x+0.00001))
 }
 
