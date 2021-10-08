@@ -223,7 +223,7 @@ files = files[grep('outcome',files)]
 
 data = list()
 for(f in files){
-  d = readRDS(paste(f,sep='')) %>% mutate(var = gsub('_metaphlan_baseline.rds','',gsub('regression_output_outcome_microbe_','',f)))
+  d = readRDS(paste(f,sep='')) %>% mutate(var = gsub('_metaphlan_endpoint.rds','',gsub('regression_output_outcome_microbe_','',f)))
   data[[f]] =d
 }
 
@@ -248,7 +248,7 @@ files = files[grep('outcome',files)]
 
 data = list()
 for(f in files){
-  d = readRDS(paste(f,sep='')) %>% mutate(var = gsub('_metaphlan_baseline.rds','',gsub('regression_output_outcome_microbe_','',f)))
+  d = readRDS(paste(f,sep='')) %>% mutate(var = gsub('_metaphlan_delta.rds','',gsub('regression_output_outcome_microbe_','',f)))
   data[[f]] =d
 }
 
