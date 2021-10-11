@@ -2,7 +2,7 @@
 
 library(tidyverse)
 
-setwd('~/Desktop/google_drive/My Drive/pds08')
+#setwd('~/Desktop/google_drive/My Drive/pds08')
 
 ### metadata cleaning
 
@@ -77,7 +77,8 @@ colnames(genefamilies)[1]='gene_family'
 
 genefamilies = genefamilies[genefamilies$gene_family!='UNMAPPED',]
 genefamilies = genefamilies[!grepl('unclassified',genefamilies$gene_family),] 
- 
+genefamilies = genefamilies[!grepl('\\|',genefamilies$gene_family),] 
+
 genefamilies = genefamilies %>% as_tibble %>% column_to_rownames('gene_family')
 
 genefamilies = genefamilies[rowMeans(genefamilies == 0) <= 0.9,] %>% rownames_to_column('gene_family')

@@ -21,6 +21,19 @@ theme_set(theme_cowplot())
 ```
 
 ```{r}
+# init 
+setwd('~/Desktop/google_drive/My Drive/pds08/')
+
+system('mkdir metaphlan_associations/volcano_plots_baseline')
+system('mkdir metaphlan_associations/volcano_plots_delta')
+system('mkdir metaphlan_associations/volcano_plots_endpoint')
+
+system('mkdir metaphlan_associations/volcano_plots_baseline_interaction')
+system('mkdir metaphlan_associations/volcano_plots_delta_interaction')
+system('mkdir metaphlan_associations/volcano_plots_endpoint_interaction')
+```
+
+```{r}
 #UMAP BASELINE, DELTA, ENDPOINT
 
 setwd('~/Desktop/google_drive/My Drive/pds08/')
@@ -77,12 +90,14 @@ metadata = metadata[rownames(baseline_metaphlan),]
 # baseline
 beta_dist = as.matrix(vegdist(baseline_metaphlan,index = "bray"))
 
-pheatmap::pheatmap(mat = beta_dist, show_rownames = F,show_colnames = T,cluster_rows=T,cluster_cols =T,annotation_row = metadata %>% select(b_bristol,b_pain,b_bm_weekly))
+metadata$b_bm_weekly= log(metadata$b_bm_weekly)
+
+pheatmap::pheatmap(mat = beta_dist, show_rownames = F,show_colnames = T,cluster_rows=T,cluster_cols =T,annotation_row = metadata %>% select(b_bristol,b_bm_weekly,rx))
 
 # endpoint
 beta_dist = as.matrix(vegdist(endpoint_metaphlan,index = "bray"))
 
-pheatmap::pheatmap(mat = beta_dist, show_rownames = F,show_colnames = T,cluster_rows=T,cluster_cols =T,annotation_row = metadata %>% select(d_bm1,d_bm2,d_bm3,rx))
+pheatmap::pheatmap(mat = beta_dist, show_rownames = F,show_colnames = T,cluster_rows=T,cluster_cols =T,annotation_row = metadata %>% select(bristol,bm_weekly,rx))
 ```
 
 ```{r}
@@ -134,7 +149,6 @@ endpoint = endpoint[grep('endpoint',endpoint)]
 endpoint = endpoint[grep('diversity',endpoint)]
 endpoint = endpoint[grep('metaphlan',endpoint)]
 endpoint = endpoint[grep('outcome',endpoint)]
-endpoint = endpoint[-grep('interaction',endpoint)]
 
 
 data = list()
@@ -258,7 +272,6 @@ files = files[grep('baseline',files)]
 files = files[-grep('diversity',files)]
 files = files[grep('metaphlan',files)]
 files = files[grep('outcome',files)]
-files = files[-grep('plots',files)]
 
 data = list()
 for(f in files){
@@ -276,7 +289,7 @@ get_volcanos(baseline_metaphlan_merged,'volcano_plots_baseline/')
 
 
 ```{r}
-# regression output -- DELTA, CLINICAL
+# regression output -- ENDPOINT, CLINICAL
 
 setwd('~/Desktop/google_drive/My Drive/pds08/metaphlan_associations')
 
@@ -284,8 +297,7 @@ files = list.files()
 files = files[grep('endpoint',files)]
 files = files[-grep('diversity',files)]
 files = files[grep('metaphlan',files)]
-files = files[grep('clinical',files)]
-files = files[-grep('plots',files)]
+files = files[grep('outcome',files)]
 
 
 data = list()
@@ -303,95 +315,16 @@ get_volcanos(baseline_metaphlan_merged,'volcano_plots_endpoint/')
 ```
 
 ```{r}
-# regression output -- ENDPOINT, TREATMENT
-
-setwd('~/Desktop/google_drive/My Drive/pds08/metaphlan_associations')
-
-files = list.files()
-files = files[grep('endpoint',files)]
-files = files[-grep('diversity',files)]
-files = files[-grep('plots',files)]
-files = files[grep('metaphlan',files)]
-files = files[grep('treatment',files)]
-
-data = list()
-for(f in files){
-  d = readRDS(paste(f,sep='')) %>% mutate(var = gsub('_metaphlan_delta.rds','',gsub('regression_output_outcome_microbe_','',f)))
-  data[[f]] =d
-}
-
-baseline_metaphlan_merged = bind_rows(data)
-baseline_metaphlan_merged = baseline_metaphlan_merged %>% filter(term!='k__Bacteria')
-baseline_metaphlan_merged = baseline_metaphlan_merged %>% mutate(term = gsub("^.*\\|", "", term))
-
-get_volcanos(baseline_metaphlan_merged,'volcano_plots_delta/')
-
-```
-
-
-```{r}
-# regression output -- BASELINE, TREATMENT
-
-setwd('~/Desktop/google_drive/My Drive/pds08/metaphlan_associations')
-
-files = list.files()
-files = files[grep('baseline',files)]
-files = files[-grep('diversity',files)]
-files = files[grep('metaphlan',files)]
-files = files[grep('treatment',files)]
-files = files[-grep('plots',files)]
-
-data = list()
-for(f in files){
-  d = readRDS(paste(f,sep='')) %>% mutate(var = gsub('_metaphlan_baseline.rds','',gsub('regression_output_outcome_microbe_','',f)))
-  data[[f]] =d
-}
-
-baseline_metaphlan_merged = bind_rows(data)
-baseline_metaphlan_merged = baseline_metaphlan_merged %>% filter(term!='k__Bacteria')
-baseline_metaphlan_merged = baseline_metaphlan_merged %>% mutate(term = gsub("^.*\\|", "", term))
-
-get_volcanos(baseline_metaphlan_merged,'volcano_plots_baseline/')
-
-```
-
-
-```{r}
-# regression output -- DELTA, TREATMENT
+# regression output -- DELTA, OUTCOME
 
 setwd('~/Desktop/google_drive/My Drive/pds08/metaphlan_associations')
 
 files = list.files()
 files = files[grep('delta',files)]
 files = files[-grep('diversity',files)]
-files = files[grep('metaphlan',files)]
-files = files[grep('treatment',files)]
 files = files[-grep('plots',files)]
-
-data = list()
-for(f in files){
-  d = readRDS(paste(f,sep='')) %>% mutate(var = gsub('_metaphlan_endpoint.rds','',gsub('regression_output_outcome_microbe_','',f)))
-  data[[f]] =d
-}
-
-baseline_metaphlan_merged = bind_rows(data)
-baseline_metaphlan_merged = baseline_metaphlan_merged %>% filter(term!='k__Bacteria')
-baseline_metaphlan_merged = baseline_metaphlan_merged %>% mutate(term = gsub("^.*\\|", "", term))
-
-get_volcanos(baseline_metaphlan_merged,'volcano_plots_endpoint/')
-
-```
-
-```{r}
-# regression output -- ENDPOINT, TREATMENT
-
-setwd('~/Desktop/google_drive/My Drive/pds08/metaphlan_associations')
-
-files = list.files()
-files = files[grep('endpoint',files)]
-files = files[-grep('diversity',files)]
 files = files[grep('metaphlan',files)]
-files = files[grep('treatment',files)]
+files = files[grep('outcome',files)]
 
 data = list()
 for(f in files){
@@ -406,6 +339,24 @@ baseline_metaphlan_merged = baseline_metaphlan_merged %>% mutate(term = gsub("^.
 get_volcanos(baseline_metaphlan_merged,'volcano_plots_delta/')
 
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ```{r} 

@@ -6,7 +6,7 @@ suppressMessages(library(tidyverse))
 suppressMessages(library(broom))
 
 #setwd('/Volumes/GoogleDrive-109433674545306273960/My\ Drive/pds08')
-setwd('~/Desktop/gdrive/pds08')
+#setwd('~/Desktop/gdrive/pds08')
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -24,7 +24,9 @@ abundance_data = readRDS(abundance_data_file)
 
 # remove rows that are identical to each other and therefore encode no additional information + add hypotheses (big problem for metaphlan)
 # this should take the HIGHER order
+abundance_data = abundance_data %>% column_to_rownames('Sample_ID')
 abundance_data = abundance_data[!duplicated(as.list(abundance_data))]
+abundance_data = abundance_data %>% rownames_to_column('Sample_ID')
 
 #abundance_data = abundance_data %>% select(Sample_ID,grep('s__',colnames(abundance_data)))
 
@@ -42,6 +44,7 @@ merged_data = inner_join(abundance_data, metadata, by='Sample_ID')
 family = 'gaussian'
 if(length(unique(merged_data[,clinical_var])) - sum(is.na(merged_data[,clinical_var])) == 2L){
 	family = 'binomial'
+	merged_data[,clinical_var] = as.factor(merged_data[,clinical_var])
 }
 
 regression_output_outcome_microbe = map(microbiome_vars, function(x) glm(data = merged_data, family=family, get(clinical_var) ~ age + get(x)*rx) %>% tidy %>% filter(term!='(Intercept)',term!='age') %>% mutate(dependent_var = clinical_var,term = if_else(term=='get(x)',x,if_else(term == 'get(x):rxTreatment',paste(x,':rxTreatment',sep=''),term)))) %>% bind_rows %>% mutate(bh = p.adjust(p.value))

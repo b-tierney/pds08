@@ -21,6 +21,19 @@ theme_set(theme_cowplot())
 ```
 
 ```{r}
+# init 
+setwd('~/Desktop/google_drive/My Drive/pds08/')
+
+system('mkdir pathways_associations/volcano_plots_delta')
+system('mkdir pathways_associations/volcano_plots_endpoint')
+system('mkdir pathways_associations/volcano_plots_baseline')
+
+system('mkdir pathways_associations/volcano_plots_baseline_interaction')
+system('mkdir pathways_associations/volcano_plots_delta_interaction')
+system('mkdir pathways_associations/volcano_plots_endpoint_interaction')
+```
+
+```{r}
 #UMAP BASELINE, DELTA, ENDPOINT
 
 setwd('~/Desktop/google_drive/My Drive/pds08/')
@@ -134,8 +147,6 @@ endpoint = endpoint[grep('endpoint',endpoint)]
 endpoint = endpoint[grep('diversity',endpoint)]
 endpoint = endpoint[grep('pathways',endpoint)]
 endpoint = endpoint[grep('outcome',endpoint)]
-endpoint = endpoint[-grep('interaction',endpoint)]
-
 
 data = list()
 for(f in endpoint){
@@ -158,6 +169,8 @@ baseline_alpha
 endpoint_alpha
 delta_alpha
 ```
+
+
 ```{r}
 # alpha diversity, interaction term model  -- baseline
 setwd('~/Desktop/google_drive/My Drive/pds08/')
@@ -258,7 +271,6 @@ files = files[grep('baseline',files)]
 files = files[-grep('diversity',files)]
 files = files[grep('pathways',files)]
 files = files[grep('outcome',files)]
-files = files[-grep('plots',files)]
 
 data = list()
 for(f in files){
@@ -267,8 +279,6 @@ for(f in files){
 }
 
 baseline_pathways_merged = bind_rows(data)
-baseline_pathways_merged = baseline_pathways_merged %>% filter(term!='k__Bacteria')
-baseline_pathways_merged = baseline_pathways_merged %>% mutate(term = gsub("^.*\\|", "", term))
 
 get_volcanos(baseline_pathways_merged,'volcano_plots_baseline/')
 
@@ -276,7 +286,7 @@ get_volcanos(baseline_pathways_merged,'volcano_plots_baseline/')
 
 
 ```{r}
-# regression output -- DELTA, CLINICAL
+# regression output -- ENDPOINT, CLINICAL
 
 setwd('~/Desktop/google_drive/My Drive/pds08/pathways_associations')
 
@@ -284,8 +294,7 @@ files = list.files()
 files = files[grep('endpoint',files)]
 files = files[-grep('diversity',files)]
 files = files[grep('pathways',files)]
-files = files[grep('clinical',files)]
-files = files[-grep('plots',files)]
+files = files[grep('outcome',files)]
 
 
 data = list()
@@ -295,66 +304,10 @@ for(f in files){
 }
 
 baseline_pathways_merged = bind_rows(data)
-baseline_pathways_merged = baseline_pathways_merged %>% filter(term!='k__Bacteria')
-baseline_pathways_merged = baseline_pathways_merged %>% mutate(term = gsub("^.*\\|", "", term))
 
 get_volcanos(baseline_pathways_merged,'volcano_plots_endpoint/')
 
 ```
-
-```{r}
-# regression output -- ENDPOINT, TREATMENT
-
-setwd('~/Desktop/google_drive/My Drive/pds08/pathways_associations')
-
-files = list.files()
-files = files[grep('endpoint',files)]
-files = files[-grep('diversity',files)]
-files = files[-grep('plots',files)]
-files = files[grep('pathways',files)]
-files = files[grep('treatment',files)]
-
-data = list()
-for(f in files){
-  d = readRDS(paste(f,sep='')) %>% mutate(var = gsub('_pathways_delta.rds','',gsub('regression_output_outcome_microbe_','',f)))
-  data[[f]] =d
-}
-
-baseline_pathways_merged = bind_rows(data)
-baseline_pathways_merged = baseline_pathways_merged %>% filter(term!='k__Bacteria')
-baseline_pathways_merged = baseline_pathways_merged %>% mutate(term = gsub("^.*\\|", "", term))
-
-get_volcanos(baseline_pathways_merged,'volcano_plots_delta/')
-
-```
-
-
-```{r}
-# regression output -- BASELINE, TREATMENT
-
-setwd('~/Desktop/google_drive/My Drive/pds08/pathways_associations')
-
-files = list.files()
-files = files[grep('baseline',files)]
-files = files[-grep('diversity',files)]
-files = files[grep('pathways',files)]
-files = files[grep('treatment',files)]
-files = files[-grep('plots',files)]
-
-data = list()
-for(f in files){
-  d = readRDS(paste(f,sep='')) %>% mutate(var = gsub('_pathways_baseline.rds','',gsub('regression_output_outcome_microbe_','',f)))
-  data[[f]] =d
-}
-
-baseline_pathways_merged = bind_rows(data)
-baseline_pathways_merged = baseline_pathways_merged %>% filter(term!='k__Bacteria')
-baseline_pathways_merged = baseline_pathways_merged %>% mutate(term = gsub("^.*\\|", "", term))
-
-get_volcanos(baseline_pathways_merged,'volcano_plots_baseline/')
-
-```
-
 
 ```{r}
 # regression output -- DELTA, TREATMENT
@@ -362,36 +315,10 @@ get_volcanos(baseline_pathways_merged,'volcano_plots_baseline/')
 setwd('~/Desktop/google_drive/My Drive/pds08/pathways_associations')
 
 files = list.files()
-files = files[grep('delta',files)]
-files = files[-grep('diversity',files)]
-files = files[grep('pathways',files)]
-files = files[grep('treatment',files)]
-files = files[-grep('plots',files)]
-
-data = list()
-for(f in files){
-  d = readRDS(paste(f,sep='')) %>% mutate(var = gsub('_pathways_endpoint.rds','',gsub('regression_output_outcome_microbe_','',f)))
-  data[[f]] =d
-}
-
-baseline_pathways_merged = bind_rows(data)
-baseline_pathways_merged = baseline_pathways_merged %>% filter(term!='k__Bacteria')
-baseline_pathways_merged = baseline_pathways_merged %>% mutate(term = gsub("^.*\\|", "", term))
-
-get_volcanos(baseline_pathways_merged,'volcano_plots_endpoint/')
-
-```
-
-```{r}
-# regression output -- ENDPOINT, TREATMENT
-
-setwd('~/Desktop/google_drive/My Drive/pds08/pathways_associations')
-
-files = list.files()
 files = files[grep('endpoint',files)]
 files = files[-grep('diversity',files)]
 files = files[grep('pathways',files)]
-files = files[grep('treatment',files)]
+files = files[grep('outcome',files)]
 
 data = list()
 for(f in files){
@@ -400,12 +327,24 @@ for(f in files){
 }
 
 baseline_pathways_merged = bind_rows(data)
-baseline_pathways_merged = baseline_pathways_merged %>% filter(term!='k__Bacteria')
-baseline_pathways_merged = baseline_pathways_merged %>% mutate(term = gsub("^.*\\|", "", term))
 
 get_volcanos(baseline_pathways_merged,'volcano_plots_delta/')
 
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ```{r} 
@@ -426,8 +365,6 @@ for(f in files){
 }
 
 baseline_pathways_merged = bind_rows(data)
-baseline_pathways_merged = baseline_pathways_merged %>% filter(term!='k__Bacteria')
-baseline_pathways_merged = baseline_pathways_merged %>% mutate(term = gsub("^.*\\|", "", term))
 
 get_volcanos(baseline_pathways_merged,'volcano_plots_baseline_interaction/')
 
@@ -450,8 +387,6 @@ for(f in files){
 }
 
 baseline_pathways_merged = bind_rows(data)
-baseline_pathways_merged = baseline_pathways_merged %>% filter(term!='k__Bacteria')
-baseline_pathways_merged = baseline_pathways_merged %>% mutate(term = gsub("^.*\\|", "", term))
 
 get_volcanos(baseline_pathways_merged,'volcano_plots_endpoint_interaction/')
 
@@ -474,8 +409,6 @@ for(f in files){
 }
 
 baseline_pathways_merged = bind_rows(data)
-baseline_pathways_merged = baseline_pathways_merged %>% filter(term!='k__Bacteria')
-baseline_pathways_merged = baseline_pathways_merged %>% mutate(term = gsub("^.*\\|", "", term))
 
 get_volcanos(baseline_pathways_merged,'volcano_plots_delta_interaction/')
 
@@ -484,7 +417,6 @@ get_volcanos(baseline_pathways_merged,'volcano_plots_delta_interaction/')
 ```{r}
 # regression output -- treatment
 
-# alpha diversity -- treatment
 setwd('~/Desktop/google_drive/My Drive/pds08/')
 
 baseline = readRDS('./pathways_associations/regression_output_microbe_treatment_pathways_baseline.rds') 

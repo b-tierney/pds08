@@ -6,7 +6,7 @@ suppressMessages(library(tidyverse))
 suppressMessages(library(broom))
 
 #setwd('/Volumes/GoogleDrive-109433674545306273960/My\ Drive/pds08')
-setwd('~/Desktop/gdrive/pds08')
+#setwd('~/Desktop/gdrive/pds08')
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -17,13 +17,14 @@ datatype = args[[3]]
 #metadata_file='pds08_metadata.rds'
 #abundance_data_file = 'metaphlan_endpoint_diversity.rds'
 
-
 metadata = readRDS(metadata_file) 
 abundance_data = readRDS(abundance_data_file)
 
 # remove rows that are identical to each other and therefore encode no additional information + add hypotheses (big problem for metaphlan)
 # this should take the HIGHER order
+abundance_data = abundance_data %>% column_to_rownames('Sample_ID')
 abundance_data = abundance_data[!duplicated(as.list(abundance_data))]
+abundance_data = abundance_data %>% rownames_to_column('Sample_ID')
 
 #abundance_data = abundance_data %>% select(Sample_ID,grep('s__',colnames(abundance_data)))
 
