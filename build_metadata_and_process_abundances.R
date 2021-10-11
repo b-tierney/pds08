@@ -2,7 +2,7 @@
 
 library(tidyverse)
 
-setwd('/Volumes/GoogleDrive-109433674545306273960/My\ Drive/pds08')
+setwd('~/Desktop/google_drive/My Drive/pds08')
 
 ### metadata cleaning
 
