@@ -48,6 +48,7 @@ colnames(pathways)[1]='pathway'
 
 pathways = pathways[pathways$pathway!='UNMAPPED',]
 pathways = pathways[!grepl('UNINTEGRATED',pathways$pathway),] 
+pathways = pathways[!grepl('\\|',pathways$pathway),] 
 
 pathways_baseline = pathways %>% select(pathway,grep('_01',colnames(pathways))) %>% as_tibble %>% column_to_rownames('pathway')
 colnames(pathways_baseline) = map(colnames(pathways_baseline), function(x) gsub('_01_all_reads_Abundance','',x))

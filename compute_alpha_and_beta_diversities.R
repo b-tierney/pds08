@@ -17,7 +17,10 @@ data = readRDS(dataloc)
 data_t = data %>% column_to_rownames('Sample_ID') %>% t
 shannon = map(colnames(data_t), function(x) diversity(data_t[,x],index='shannon')) %>% unlist %>% unname
 simpson = map(colnames(data_t), function(x) diversity(data_t[,x],index='simpson')) %>% unlist %>% unname
-data_t_species = data_t[grepl('s__',rownames(data_t)),]
+data_t_species = data_t
+if(grepl('metaphlan',dataloc)){
+	data_t_species = data_t[grepl('s__',rownames(data_t)),]
+}
 richness = map(colnames(data_t_species), function(x) length(which(data_t_species[,x]!=0))) %>% unlist %>% unname
 
 divs = data.frame(shannon,simpson,richness)
