@@ -13,6 +13,8 @@ sequencing_data = read.csv('sequencing_metadata.csv') %>% select(Seed_ID,Curebas
 
 merged_metadata = left_join(metadata,sequencing_data,by=c('id'='Curebase_ID')) %>% filter(!is.na(Sample_ID))
 
+merged_metadata = merged_metadata %>% mutate(rx = if_else(rx == 'Active','Treatment',rx))
+
 saveRDS(merged_metadata,'pds08_metadata.rds')
 ### abundance cleaning
 
@@ -40,7 +42,7 @@ saveRDS(metaphlan_deltas,'metaphlan_delta.rds')
 
 # pathways
 
-pathways = read.csv('pds08_pathway_abundances.tsv',sep='\t')
+pathways = read.csv('pds08_pathways_output.txt',sep='\t')
 
 colnames(pathways)[1]='pathway'
 
@@ -68,7 +70,7 @@ saveRDS(pathways_endpoint,'pathways_endpoint.rds')
 saveRDS(pathways_deltas,'pathways_delta.rds')
 
 # gene families
-genefamilies = read.csv('pds08_genefam_abundances.tsv',sep='\t')
+genefamilies = read.csv('pds08_genefamilies_output.txt',sep='\t')
 
 colnames(genefamilies)[1]='gene_family'
 

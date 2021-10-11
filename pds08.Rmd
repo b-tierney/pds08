@@ -94,6 +94,7 @@ baseline = baseline[grep('baseline',baseline)]
 baseline = baseline[grep('diversity',baseline)]
 baseline = baseline[grep('metaphlan',baseline)]
 baseline = baseline[grep('outcome',baseline)]
+endpoint = endpoint[-grep('interaction',endpoint)]
 
 data = list()
 for(f in baseline){
@@ -113,6 +114,7 @@ delta = delta[grep('delta',delta)]
 delta = delta[grep('diversity',delta)]
 delta = delta[grep('metaphlan',delta)]
 delta = delta[grep('outcome',delta)]
+endpoint = endpoint[-grep('interaction',endpoint)]
 
 data = list()
 for(f in delta){
@@ -132,6 +134,8 @@ endpoint = endpoint[grep('endpoint',endpoint)]
 endpoint = endpoint[grep('diversity',endpoint)]
 endpoint = endpoint[grep('metaphlan',endpoint)]
 endpoint = endpoint[grep('outcome',endpoint)]
+endpoint = endpoint[-grep('interaction',endpoint)]
+
 
 data = list()
 for(f in endpoint){
@@ -154,6 +158,66 @@ baseline_alpha
 endpoint_alpha
 delta_alpha
 ```
+```{r}
+# alpha diversity, interaction term model  -- baseline
+setwd('~/Desktop/google_drive/My Drive/pds08/')
+
+files = list.files('metaphlan_associations')
+files = files[grep('baseline',files)]
+files = files[grep('diversity',files)]
+files = files[grep('metaphlan',files)]
+files = files[grep('interaction',files)]
+
+data = list()
+for(f in files){
+  d = readRDS(paste('metaphlan_associations/',f,sep='')) %>% mutate(var = gsub('_metaphlan_endpoint_diversity.rds','',gsub('regression_output_interaction_microbe_','',f)))
+  data[[f]] =d
+}
+
+bind_rows(data) %>% filter(p.value<0.1)
+
+```
+
+```{r}
+# alpha diversity, interaction term model  -- endpoint
+
+setwd('~/Desktop/google_drive/My Drive/pds08/')
+
+files = list.files('metaphlan_associations')
+files = files[grep('endpoint',files)]
+files = files[grep('diversity',files)]
+files = files[grep('metaphlan',files)]
+files = files[grep('interaction',files)]
+
+data = list()
+for(f in files){
+  d = readRDS(paste('metaphlan_associations/',f,sep='')) %>% mutate(var = gsub('_metaphlan_endpoint_diversity.rds','',gsub('regression_output_interaction_microbe_','',f)))
+  data[[f]] =d
+}
+
+bind_rows(data) %>% filter(p.value<0.1)
+```
+
+```{r}
+# alpha diversity, interaction term model  -- delta
+
+setwd('~/Desktop/google_drive/My Drive/pds08/')
+
+files = list.files('metaphlan_associations')
+files = files[grep('delta',files)]
+files = files[grep('diversity',files)]
+files = files[grep('metaphlan',files)]
+files = files[grep('interaction',files)]
+
+data = list()
+for(f in files){
+  d = readRDS(paste('metaphlan_associations/',f,sep='')) %>% mutate(var = gsub('_metaphlan_endpoint_diversity.rds','',gsub('regression_output_interaction_microbe_','',f)))
+  data[[f]] =d
+}
+
+bind_rows(data) %>% filter(p.value<0.1)
+```
+
 ```{r}
 #FIGURE stuff to look at --
 
@@ -259,3 +323,97 @@ baseline_metaphlan_merged = baseline_metaphlan_merged %>% mutate(term = gsub("^.
 get_volcanos(baseline_metaphlan_merged,'volcano_plots_delta/')
 
 ```
+
+
+```{r} 
+# regression output -- BASELINE, INTERACTION
+
+setwd('~/Desktop/google_drive/My Drive/pds08/metaphlan_associations')
+
+files = list.files()
+files = files[grep('baseline',files)]
+files = files[-grep('diversity',files)]
+files = files[grep('metaphlan',files)]
+files = files[grep('interaction',files)]
+
+data = list()
+for(f in files){
+  d = readRDS(paste(f,sep='')) %>% mutate(var = gsub('_metaphlan_baseline.rds','',gsub('regression_output_outcome_microbe_','',f)))
+  data[[f]] =d
+}
+
+baseline_metaphlan_merged = bind_rows(data)
+baseline_metaphlan_merged = baseline_metaphlan_merged %>% filter(term!='k__Bacteria')
+baseline_metaphlan_merged = baseline_metaphlan_merged %>% mutate(term = gsub("^.*\\|", "", term))
+
+get_volcanos(baseline_metaphlan_merged,'volcano_plots_baseline_interaction/')
+
+```
+
+```{r}
+# regression output -- ENDPOINT, INTERACTION
+setwd('~/Desktop/google_drive/My Drive/pds08/metaphlan_associations')
+
+files = list.files()
+files = files[grep('endpoint',files)]
+files = files[-grep('diversity',files)]
+files = files[grep('metaphlan',files)]
+files = files[grep('interaction',files)]
+
+data = list()
+for(f in files){
+  d = readRDS(paste(f,sep='')) %>% mutate(var = gsub('_metaphlan_baseline.rds','',gsub('regression_output_outcome_microbe_','',f)))
+  data[[f]] =d
+}
+
+baseline_metaphlan_merged = bind_rows(data)
+baseline_metaphlan_merged = baseline_metaphlan_merged %>% filter(term!='k__Bacteria')
+baseline_metaphlan_merged = baseline_metaphlan_merged %>% mutate(term = gsub("^.*\\|", "", term))
+
+get_volcanos(baseline_metaphlan_merged,'volcano_plots_endpoint_interaction/')
+
+```
+
+```{r}
+# regression output -- DELTA, INTERACTION
+setwd('~/Desktop/google_drive/My Drive/pds08/metaphlan_associations')
+
+files = list.files()
+files = files[grep('delta',files)]
+files = files[-grep('diversity',files)]
+files = files[grep('metaphlan',files)]
+files = files[grep('interaction',files)]
+
+data = list()
+for(f in files){
+  d = readRDS(paste(f,sep='')) %>% mutate(var = gsub('_metaphlan_baseline.rds','',gsub('regression_output_outcome_microbe_','',f)))
+  data[[f]] =d
+}
+
+baseline_metaphlan_merged = bind_rows(data)
+baseline_metaphlan_merged = baseline_metaphlan_merged %>% filter(term!='k__Bacteria')
+baseline_metaphlan_merged = baseline_metaphlan_merged %>% mutate(term = gsub("^.*\\|", "", term))
+
+get_volcanos(baseline_metaphlan_merged,'volcano_plots_delta_interaction/')
+
+```
+
+```{r}
+# regression output -- treatment
+
+# alpha diversity -- treatment
+setwd('~/Desktop/google_drive/My Drive/pds08/')
+
+baseline = readRDS('./metaphlan_associations/regression_output_microbe_treatment_metaphlan_baseline.rds') 
+endpoint = readRDS('./metaphlan_associations/regression_output_microbe_treatment_metaphlan_endpoint.rds')
+delta = readRDS('./metaphlan_associations/regression_output_microbe_treatment_metaphlan_delta.rds') 
+
+baseline %>% filter(bh < 0.1)
+endpoint %>% filter(bh < 0.1)
+delta %>% filter(bh < 0.1)
+
+```
+
+
+
+
