@@ -19,7 +19,7 @@ datatype = args[[4]]
 #abundance_data_file = 'metaphlan_endpoint_diversity.rds'
 #clinical_var = 'd_bm3'
 
-metadata = readRDS(metadata_file) %>% filter(b_bm_weekly <= 4.2) 
+metadata = readRDS(metadata_file)  %>% mutate(b_bm_weekly = log(b_bm_weekly)) #filter(b_bm_weekly <= 4.2) 
 abundance_data = readRDS(abundance_data_file)
 
 # remove rows that are identical to each other and therefore encode no additional information + add hypotheses (big problem for metaphlan)
