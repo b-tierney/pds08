@@ -109,7 +109,6 @@ baseline = baseline[grep('baseline',baseline)]
 baseline = baseline[grep('diversity',baseline)]
 baseline = baseline[grep('metaphlan',baseline)]
 baseline = baseline[grep('outcome',baseline)]
-endpoint = endpoint[-grep('interaction',endpoint)]
 
 data = list()
 for(f in baseline){
@@ -129,7 +128,6 @@ delta = delta[grep('delta',delta)]
 delta = delta[grep('diversity',delta)]
 delta = delta[grep('metaphlan',delta)]
 delta = delta[grep('outcome',delta)]
-endpoint = endpoint[-grep('interaction',endpoint)]
 
 data = list()
 for(f in delta){
@@ -149,7 +147,6 @@ endpoint = endpoint[grep('endpoint',endpoint)]
 endpoint = endpoint[grep('diversity',endpoint)]
 endpoint = endpoint[grep('metaphlan',endpoint)]
 endpoint = endpoint[grep('outcome',endpoint)]
-
 
 data = list()
 for(f in endpoint){
@@ -172,6 +169,7 @@ baseline_alpha
 endpoint_alpha
 delta_alpha
 ```
+
 ```{r}
 # alpha diversity, interaction term model  -- baseline
 setwd('~/Desktop/google_drive/My Drive/pds08/')

@@ -17,7 +17,7 @@ datatype = args[[3]]
 #metadata_file='pds08_metadata.rds'
 #abundance_data_file = 'metaphlan_endpoint_diversity.rds'
 
-metadata = readRDS(metadata_file)  %>% filter(b_bm_weekly<=4.2) %>% mutate(b_bm_weekly = log(b_bm_weekly)) 
+metadata = readRDS(metadata_file)  %>% filter(b_bm_weekly<=4.2) #%>% mutate(b_bm_weekly = log(b_bm_weekly)) 
 abundance_data = readRDS(abundance_data_file)
 
 # remove rows that are identical to each other and therefore encode no additional information + add hypotheses (big problem for metaphlan)
