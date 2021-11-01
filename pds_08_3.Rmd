@@ -1,0 +1,323 @@
+---
+title: "pds08_3"
+author: "Braden T Tierney"
+date: "10/23/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(umap)
+library(cowplot)
+library(vegan)
+library(reshape2)
+library(ggrepel)
+
+theme_set(theme_cowplot())
+```
+
+
+```{r}
+setwd('~/Desktop/google_drive/My Drive/pds08/')
+
+bracken = read.csv('bracken_output/merged_bracken_output.tsv',sep='\t',header=T)
+
+#filter out rare bugs
+bracken_num = bracken %>% select(name,all_of(colnames(bracken)[!grepl('frac',colnames(bracken))])) %>% column_to_rownames('name') %>% select(-taxonomy_id,-taxonomy_lvl)
+orgs_to_keep = rowMeans(bracken_num) %>% data.frame %>% rownames_to_column('organism') %>% filter(.>100) %>% select(organism) %>% unlist %>% unname
+
+bracken = bracken %>% filter(name %in% orgs_to_keep) %>% select(name,taxonomy_lvl,all_of(colnames(bracken)[grepl('frac',colnames(bracken))]))
+colnames(bracken) = gsub('\\.bracken_frac','',colnames(bracken))
+
+# get samples to keep 
+basekeep = colnames(bracken)[grepl('_01',colnames(bracken))] 
+basekeep = gsub('_01','',basekeep)
+endkeep = colnames(bracken)[grepl('_02',colnames(bracken))] 
+endkeep = gsub('_02','',endkeep)
+
+samples_to_keep = intersect(basekeep,endkeep)
+
+colnames(bracken) = gsub('_01','_baseline',colnames(bracken))
+colnames(bracken) = gsub('_02','_endpoint',colnames(bracken))
+
+bracken_s = bracken %>% filter(taxonomy_lvl=='S') %>% select(-taxonomy_lvl)
+
+metadata = readRDS('pds08_metadata.rds') # %>% filter(b_bm_weekly<=3 )
+#demarcate responder vs nonresponder
+metadata = metadata %>% mutate(RESP_STATUS = as.factor(if_else(rx != 'Treatment',"PLACEBO",if_else(b_bm_weekly<=4.2 & d_bm_weekly>1,'RESP','NONRESP'))))
+metadata$RESP_STATUS = factor(metadata$RESP_STATUS,levels=c('PLACEBO','NONRESP','RESP'))
+
+metadata = metadata %>% mutate(IMPROVED = as.factor(if_else(b_bm_weekly<=4.2 & d_bm_weekly>1,'YES','NO'))) %>% filter(!is.na(RESP_STATUS))
+
+metadata = metadata %>% mutate(RESP_V_NONRESP = as.factor(if_else(RESP_STATUS == 'RESP',1,if_else(RESP_STATUS== 'NONRESP',0,-1))))
+metadata$RESP_V_NONRESP[metadata$RESP_V_NONRESP==-1]=NA
+
+metadata$RESP_V_NONRESP = as.factor(as.character(metadata$RESP_V_NONRESP))
+
+#compute diversity and richness
+data = bracken_s %>% column_to_rownames('name')
+
+toremove = colnames(data) %>% strsplit('_') %>% map_chr(1) %>% table %>% data.frame %>% filter(Freq!=2) %>% select(colnames(.)[1]) %>% unlist %>% unname
+data = data %>% data.frame%>% select(!(grep(paste(toremove, collapse="|"), colnames(data))))
+
+#data = data[rowMeans(data)>.00001,] 
+shannon = map(colnames(data), function(x) diversity(data[,x],index='shannon')) %>% unlist %>% unname
+simpson = map(colnames(data), function(x) diversity(data[,x],index='simpson')) %>% unlist %>% unname
+richness = map(colnames(data), function(x) length(which(data[,x]!=0))) %>% unlist %>% unname
+
+divs = data.frame(shannon,simpson,richness)
+rownames(divs) = colnames(data)
+divs = divs %>% rownames_to_column('Sample_ID')
+divs = divs %>% mutate(timepoint = strsplit(Sample_ID,'_')%>% map_chr(2),Sample_ID = strsplit(Sample_ID,'_')%>% map_chr(1)) 
+
+# merge all data into one frame
+bracken_s = bracken_s %>% column_to_rownames('name') %>% t %>% data.frame %>% rownames_to_column('Sample_ID') 
+bracken_s$timepoint = strsplit(bracken_s$Sample_ID,'_')%>% map_chr(2)
+bracken_s$Sample_ID = strsplit(bracken_s$Sample_ID,'_')%>% map_chr(1)
+
+bracken_merged = left_join(bracken_s,divs,by=c('Sample_ID','timepoint'))
+abdata = left_join(bracken_merged,metadata,by='Sample_ID') %>% filter(!is.na(RESP_STATUS)) %>% filter(Sample_ID %in% samples_to_keep)
+
+```
+
+```{r}
+# metaphlan instead of bracken
+setwd('~/Desktop/google_drive/My Drive/pds08/')
+
+baseline_metaphlan = readRDS('metaphlan_baseline.rds') %>% mutate(Sample_ID = paste(Sample_ID,'_baseline',sep=''))
+endpoint_metaphlan = readRDS('metaphlan_endpoint.rds') %>% mutate(Sample_ID = paste(Sample_ID,'_endpoint',sep=''))
+delta_metaphlan = readRDS('metaphlan_delta.rds') %>% mutate(Sample_ID = paste(Sample_ID,'_delta',sep=''))
+
+data = bind_rows(baseline_metaphlan,endpoint_metaphlan) %>% column_to_rownames('Sample_ID') 
+data = data %>% select(all_of(grep('s__',colnames(data)))) %>% t
+#data = data[rowMeans(data)>.0001,] 
+
+toremove = colnames(data) %>% strsplit('_') %>% map_chr(1) %>% table %>% data.frame %>% filter(Freq!=2) %>% select(colnames(.)[1]) %>% unlist %>% unname
+data = data %>% data.frame%>% select(!(grep(paste(toremove, collapse="|"), colnames(data))))
+
+shannon = map(colnames(data), function(x) diversity(data[,x],index='shannon')) %>% unlist %>% unname
+simpson = map(colnames(data), function(x) diversity(data[,x],index='simpson')) %>% unlist %>% unname
+richness = map(colnames(data), function(x) length(which(data[,x]!=0))) %>% unlist %>% unname
+
+divs = data.frame(shannon,simpson,richness)
+rownames(divs) = colnames(data)
+divs = divs %>% rownames_to_column('Sample_ID')
+divs = divs %>% mutate(timepoint = strsplit(Sample_ID,'_')%>% map_chr(2),Sample_ID = strsplit(Sample_ID,'_')%>% map_chr(1)) 
+
+# merge all data into one frame
+metaphlan_s = data %>% t %>% data.frame %>% rownames_to_column('Sample_ID') 
+metaphlan_s$timepoint = strsplit(metaphlan_s$Sample_ID,'_')%>% map_chr(2)
+metaphlan_s$Sample_ID = strsplit(metaphlan_s$Sample_ID,'_')%>% map_chr(1)
+metaphlan_merged = left_join(metaphlan_s,divs,by=c('Sample_ID','timepoint'))
+abdata = left_join(metaphlan_merged,metadata,by='Sample_ID') %>% filter(!is.na(RESP_STATUS))
+```
+
+```{r}
+#associations
+regcolumns = colnames(abdata)[grep('k__',colnames(abdata))]
+
+abdata_b = abdata %>% filter(timepoint=='baseline')
+abdata_e = abdata %>% filter(timepoint=='endpoint')
+ 
+output = list()
+for(r in regcolumns){
+  output[[r]] = glm(data = abdata_e, abdata[,r] ~ RESP_STATUS,family='gaussian') %>% tidy %>% mutate(microbial_var = r) %>% filter(term!='(Intercept)')
+}
+output_merged = bind_rows(output)
+```
+
+```{r}
+
+metaphlan_b_e_umap = umap(metaphlan_b_e)
+umap_output = metaphlan_b_e_umap$layout %>% data.frame %>% rownames_to_column('key') %>% as.tibble %>% mutate(Sample_ID = strsplit(key,'_') %>% map_chr(1),timepoint = strsplit(key,'_') %>% map_chr(2))
+umap_output = left_join(umap_output,metadata,by='Sample_ID')  %>% filter(!is.na(RESP_STATUS))
+
+ggplot(data = umap_output ,aes(x=X1,y=X2,group=Sample_ID,color=as.factor(RESP_STATUS))) + geom_point(size=3,aes(shape=timepoint)) + geom_line()
+
+ggplot(data = umap_output ,aes(x=X1,y=X2,group=Sample_ID,color=as.factor(IMPROVED))) + geom_point(size=3,aes(shape=timepoint)) + geom_line()
+
+ggplot(data = umap_output %>% filter(timepoint == 'baseline'),aes(x=X1,y=X2,group=Sample_ID,color=as.factor(RESP_STATUS))) + geom_point(size=3,aes(shape=timepoint))
+
+ggplot(data = umap_output %>% filter(timepoint == 'endpoint'),aes(x=X1,y=X2,group=Sample_ID,color=as.factor(RESP_STATUS))) + geom_point(size=3,aes(shape=timepoint))
+
+```
+
+
+```{r}
+# BETA COMP
+
+setwd('~/Desktop/google_drive/My Drive/pds08/')
+
+# baseline
+beta_dist = as.matrix(vegdist(metaphlan_b_e,index = "bray"))
+
+abdata_b = abdata %>% select(Sample_ID,timepoint,RESP_STATUS,b_bm_weekly,b_bloat,b_pain,shannon,simpson,richness,IMPROVED,rx) %>% filter(timepoint=='baseline') %>% mutate(Sample_ID = paste(Sample_ID,timepoint,sep='_'))
+abdata_e = abdata %>% select(Sample_ID,timepoint,RESP_STATUS,b_bm_weekly,b_bloat,b_pain,shannon,simpson,richness,IMPROVED) %>% filter(timepoint=='endpoint') %>% mutate(Sample_ID = paste(Sample_ID,timepoint,sep='_'))
+abdata_long = bind_rows(abdata_b,abdata_e) %>% column_to_rownames("Sample_ID")
+
+pheatmap::pheatmap(mat = beta_dist, show_rownames = F,show_colnames = T,cluster_rows=T,cluster_cols =T,annotation_row = abdata_long %>% filter(RESP_STATUS !='PLACEBO')%>% select(RESP_STATUS,IMPROVED))
+
+
+```
+
+```{r}
+
+#look at diversity between responders and nonresponders
+
+setwd('~/Desktop/google_drive/My Drive/pds08/')
+
+abdata_div = abdata %>%  select(Sample_ID,shannon,simpson,richness,RESP_STATUS,rx,timepoint,IMPROVED,RESP_V_NONRESP)
+abdata_div_melted = melt(abdata_div)
+
+ggplot(data = abdata_div_melted, aes(x = as.factor(timepoint), y = value)) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +stat_compare_means(paired = T,method='t.test')+ geom_point(aes(fill=as.factor(timepoint),group=Sample_ID), position = position_dodge(0.2)) + geom_line(aes(group=Sample_ID),color='grey',position = position_dodge(0.2)) + facet_grid(cols=vars(RESP_STATUS),rows=vars(variable),scales='free')
+ggsave('rnr_div.pdf',width=15,height=15)
+
+### look at everybody who got better
+
+ggplot(data = abdata_div_melted, aes(x = as.factor(timepoint), y = value)) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point(aes(fill=as.factor(timepoint),group=Sample_ID), position = position_dodge(0.2)) + stat_compare_means(paired=T,method='t.test') + geom_line(aes(group=Sample_ID),color='grey',position = position_dodge(0.2)) + facet_grid(cols=vars(IMPROVED),rows=vars(variable),scales='free')
+
+ggsave('ny_div.pdf',width=15,height=15)
+
+# compare deltas in diversity by group
+
+abdata_div_b = abdata %>% filter(timepoint=='baseline') %>% select(Sample_ID,shannon,simpson,richness) %>% column_to_rownames("Sample_ID")
+abdata_div_e = abdata %>% filter(timepoint=='endpoint') %>% select(Sample_ID,shannon,simpson,richness) %>% column_to_rownames("Sample_ID")
+
+abdata_div_delta = (abdata_div_e - abdata_div_b) %>% rownames_to_column('Sample_ID')
+
+abdata_div_delta = left_join(abdata_div_delta, abdata %>%select(Sample_ID,RESP_STATUS,rx,IMPROVED,RESP_V_NONRESP))
+abdata_div_delta_melted = melt(abdata_div_delta)
+
+ggplot(data = abdata_div_delta_melted, aes(x = as.factor(RESP_STATUS), y = value)) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +stat_compare_means(method='t.test')+ geom_point(aes(fill=as.factor(RESP_STATUS)), position = position_dodge(0.2)) + geom_line(aes(group=Sample_ID),color='grey',position = position_dodge(0.2)) + facet_grid(rows=vars(variable),scales='free')
+
+```
+
+```{r}
+# look for bifidogenic effect
+
+bifidos = colnames(abdata)[grepl('Bifido',colnames(abdata))]
+
+abdata_bif = abdata %>%  select(Sample_ID,all_of(bifidos),RESP_STATUS,rx,timepoint,IMPROVED)
+abdata_bif_melted = melt(abdata_bif)
+
+ggplot(data = abdata_bif_melted, aes(x = as.factor(timepoint), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point() + geom_line(aes(group=Sample_ID),color='grey') + facet_grid(rows=vars(RESP_STATUS),cols = vars(variable),scales='free')+theme(strip.text.x = element_text(angle = 0))
+
+abdata_bif_melted_all_bif =abdata_bif_melted %>% select(Sample_ID,RESP_STATUS,timepoint,value,rx,IMPROVED) %>% group_by(Sample_ID,timepoint,RESP_STATUS) %>% mutate(value=sum(value))
+ 
+ggplot(data = abdata_bif_melted_all_bif, aes(x = as.factor(timepoint), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point() + geom_line(aes(group=Sample_ID),color='grey') + facet_grid(cols=vars(RESP_STATUS))
+
+### REPEAT BY RX
+
+ggplot(data = abdata_bif_melted, aes(x = as.factor(timepoint), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point() + geom_line(aes(group=Sample_ID),color='grey') + facet_grid(rows=vars(rx),cols = vars(variable),scales='free')+theme(strip.text.x = element_text(angle = 0)) +theme(axis.text.y = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+ggplot(data = abdata_bif_melted_all_bif, aes(x = as.factor(timepoint), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point() + geom_line(aes(group=Sample_ID),color='grey') + facet_grid(cols=vars(rx))
+
+### REPEAT BY IMPROVEMENT
+
+ggplot(data = abdata_bif_melted, aes(x = as.factor(timepoint), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point() + geom_line(aes(group=Sample_ID),color='grey') + facet_grid(rows=vars(IMPROVED),cols = vars(variable),scales='free')+theme(strip.text.x = element_text(angle = 0))
+
+ggplot(data = abdata_bif_melted_all_bif, aes(x = as.factor(timepoint), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point() + geom_line(aes(group=Sample_ID),color='grey') + facet_grid(cols=vars(IMPROVED))
+```
+
+```{r}
+# parse and merge in card data
+setwd('~/Desktop/google_drive/My Drive/pds08/')
+
+card_files = list.files('card_genes')
+
+output = list()
+for(f in card_files){
+  data = read.csv(paste('card_genes/',f,sep=''),sep='\t',header=T) %>% select(Drug.Class,Best_Hit_ARO,AMR.Gene.Family,Resistance.Mechanism)
+  sample_id = strsplit(f,'_') %>% map_chr(1)
+  timepoint = strsplit(f,'_') %>% map_chr(2)
+  data$Sample_ID = sample_id
+  data$timepoint = timepoint
+  output[[f]] = data
+}
+
+merged_output = bind_rows(output) %>% mutate(timepoint = gsub('01','baseline',timepoint)) %>% mutate(timepoint = gsub('02','endpoint',timepoint))
+merged_output_melted = melt(id = c('Sample_ID','timepoint'),merged_output) 
+merged_output_melted_counted = merged_output_melted %>% group_by(Sample_ID,timepoint,variable,value) %>% count
+merged_output_melted_counted_unique = merged_output_melted %>% unique %>% group_by(Sample_ID,timepoint,variable) %>% count
+
+merged_output_melted_counted_unique_mdat = left_join(merged_output_melted_counted_unique,metadata)
+merged_output_melted_counted_mdat = left_join(merged_output_melted_counted,metadata)
+merged_output_melted_counted_mdat = left_join(merged_output_melted_counted_mdat,divs)
+
+# variable level summaries
+merged_output_melted_summary_overall = merged_output_melted %>% unique %>% group_by(Sample_ID,timepoint,variable) %>% count
+merged_output_melted_summary_overall_mdat = left_join(merged_output_melted_summary_overall,metadata)
+
+# unmelted data for regression
+merged_output_mdat = left_join(merged_output,metadata)
+merged_output_mdat = left_join(merged_output_mdat,divs)
+```
+
+```{r}
+#  total card genes by type by resp non resp
+
+# overall baseline/endpoint
+ggplot(data = merged_output_melted_summary_overall_mdat %>% filter(timepoint == 'baseline',!is.na(RESP_STATUS)) ,aes(x=Sample_ID,y=n)) + geom_bar(stat='identity') + facet_grid(cols=vars(RESP_STATUS),rows=vars(variable),scales='free') + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+ggplot(data = merged_output_melted_summary_overall_mdat %>% filter(timepoint == 'endpoint',!is.na(RESP_STATUS)) ,aes(x=Sample_ID,y=n)) + geom_bar(stat='identity') + facet_grid(cols=vars(RESP_STATUS),rows=vars(variable),scales='free') + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+### RES MECHS 
+
+# baseline counts
+ggplot(data = merged_output_melted_counted_mdat %>% filter(timepoint=='baseline',variable == 'Resistance.Mechanism',!is.na(RESP_STATUS)),aes(x=Sample_ID,y=n)) + geom_bar(stat='identity') + facet_grid(cols=vars(RESP_STATUS),rows=vars(value),scales='free') + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+theme(axis.text.y = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+# endpoint counts
+ggplot(data = merged_output_melted_counted_mdat %>% filter(timepoint=='endpoint',variable == 'Resistance.Mechanism',!is.na(RESP_STATUS)),aes(x=Sample_ID,y=n)) + geom_bar(stat='identity') + facet_grid(cols=vars(RESP_STATUS),rows=vars(value),scales='free') + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+theme(axis.text.y = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+```
+
+```{r}
+# association between different var types and resp status
+
+amr_associations <- function(amr_data,metadata,diversity_data,colname, timeval){
+   merged_output_melted = melt(merged_output,id.vars = c('Sample_ID','timepoint')) %>% filter(variable == colname) %>% select(-variable) %>% filter(timepoint == timeval) %>% select(-timepoint)
+   merged_output_unmelted = merged_output_melted %>% dcast(Sample_ID ~ value)
+   merged_output_unmelted_summed = merged_output_unmelted %>% column_to_rownames('Sample_ID') %>% as.data.frame %>% rowSums %>%as.data.frame() %>% rownames_to_column('Sample_ID')
+   colnames(merged_output_unmelted_summed)[2]='n'
+   regvals = merged_output_unmelted %>% select_if(is.numeric) %>% colSums %>% as.data.frame %>% filter(.>3) %>% rownames
+   merged_output_unmelted = merged_output_unmelted %>% select(Sample_ID, all_of(regvals))
+   data_sub = left_join(merged_output_unmelted,metadata)
+   data_sub = left_join(data_sub,diversity_data %>% filter(timepoint == timeval) %>% select(-timepoint))
+   output=list()
+  for(c in regvals){
+    # nonresp vs resp
+    nr = glm(data = data_sub, RESP_V_NONRESP ~ data_sub[,c] + age,family='binomial') %>% tidy %>% mutate(variable = colname, type = c, depvar = 'RESP_V_NONRESP')
+    # diversity/richness
+    ri = glm(data = data_sub, richness ~ data_sub[,c] + age) %>% tidy %>% mutate(variable = colname, type = c,depvar = 'richness')
+    sh = glm(data = data_sub, shannon ~ data_sub[,c] + age) %>% tidy %>% mutate(variable = colname, type = c,depvar = 'shannon')
+    si = glm(data = data_sub, simpson ~ data_sub[,c] + age) %>% tidy %>% mutate(variable = colname, type = c,depvar = 'simpson')
+    output[[c]] = bind_rows(nr,ri,sh,si)
+  }
+  overall = left_join(merged_output_unmelted_summed,metadata)
+  overall = left_join(overall,diversity_data %>% filter(timepoint == timeval) %>% select(-timepoint))
+    nr = glm(data = overall, RESP_V_NONRESP ~ n + age,family='binomial') %>% tidy %>% mutate(variable = colname, type = 'overall', depvar = 'RESP_V_NONRESP')
+    # diversity/richness and gene counts
+    ri = glm(data = overall, richness ~ n + age) %>% tidy %>% mutate(variable = colname, type = 'overall',depvar = 'richness')
+    sh = glm(data = overall, shannon ~ n + age) %>% tidy %>% mutate(variable = colname, type = 'overall',depvar = 'shannon')
+    si = glm(data = overall, simpson ~ n + age) %>% tidy %>% mutate(variable = colname, type = 'overall',depvar = 'simpson')
+    output[['overall']] = bind_rows(nr,ri,sh,si)
+  output = bind_rows(output) %>% filter(term != '(Intercept)',term!='age') %>% select(-term) %>% mutate(bh = p.adjust(p.value,method = 'BH'))
+  return(output)
+}
+
+amr_associations(merged_output_mdat,metadata,divs,"Resistance.Mechanism",'baseline') %>% filter(bh<0.05)
+amr_associations(merged_output_mdat,metadata,divs,"AMR.Gene.Family",'baseline') %>% filter(bh<0.05)
+amr_associations(merged_output_mdat,metadata,divs,"Best_Hit_ARO",'baseline') %>% filter(bh<0.05)
+amr_associations(merged_output_mdat,metadata,divs,"Drug.Class",'baseline') %>% filter(bh<0.05)
+```
+
+
+```{r}
+ggplot(data = left_join(metadata,divs), aes(x=richness,fill=as.factor(RESP_STATUS))) + geom_histogram(bins=50)
+```
+

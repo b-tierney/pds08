@@ -13,7 +13,8 @@ args <- commandArgs(trailingOnly = TRUE)
 metadata_file = args[[1]]
 abundance_data_file = args[[2]]
 clinical_var = args[[3]]
-datatype = args[[4]]
+family=args[[4]]
+datatype = args[[5]]
 
 #metadata_file='pds08_metadata.rds'
 #abundance_data_file = 'metaphlan_endpoint_diversity.rds'
@@ -40,13 +41,6 @@ if(!grepl('delta',abundance_data_file) & !grepl('diversity',abundance_data_file)
 merged_data = inner_join(abundance_data, metadata, by='Sample_ID')
 
 # compute associations of form outcome ~ age + microbe
-
-family = 'gaussian'
-if(length(unique(merged_data[,clinical_var])) - sum(is.na(merged_data[,clinical_var])) == 2L){
-	family = 'binomial'
-	merged_data[,clinical_var] = as.factor(merged_data[,clinical_var])
-}
-
 regression_output_outcome_microbe = map(microbiome_vars, function(x) glm(data = merged_data, family=family, get(clinical_var) ~ age + get(x)) %>% tidy %>% filter(term!='(Intercept)',term!='age') %>% mutate(dependent_var = clinical_var,term = x)) %>% bind_rows %>% mutate(bh = p.adjust(p.value))
 
 saveRDS(regression_output_outcome_microbe,paste(datatype,'_associations/regression_output_outcome_microbe_',clinical_var,'_',abundance_data_file,sep=''))

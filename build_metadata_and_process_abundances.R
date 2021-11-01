@@ -15,6 +15,17 @@ merged_metadata = left_join(metadata,sequencing_data,by=c('id'='Curebase_ID')) %
 
 merged_metadata = merged_metadata %>% mutate(rx = if_else(rx == 'Active','Treatment',rx))
 
+#demarcate responder vs nonresponder
+merged_metadata = merged_metadata %>% mutate(RESP_STATUS = as.factor(if_else(rx != 'Treatment',"PLACEBO",if_else(b_bm_weekly<=4.2 & d_bm_weekly>1,'RESP','NONRESP'))))
+merged_metadata$RESP_STATUS = factor(merged_metadata$RESP_STATUS,levels=c('PLACEBO','NONRESP','RESP'))
+
+merged_metadata = merged_metadata %>% mutate(IMPROVED = as.factor(if_else(b_bm_weekly<=4.2 & d_bm_weekly>1,'YES','NO'))) %>% filter(!is.na(RESP_STATUS))
+
+merged_metadata = merged_metadata %>% mutate(RESP_V_NONRESP = as.factor(if_else(RESP_STATUS == 'RESP',1,if_else(RESP_STATUS== 'NONRESP',0,-1))))
+merged_metadata$RESP_V_NONRESP[merged_metadata$RESP_V_NONRESP==-1]=NA
+
+merged_metadata$RESP_V_NONRESP = as.factor(as.character(merged_metadata$RESP_V_NONRESP))
+
 saveRDS(merged_metadata,'pds08_metadata.rds')
 ### abundance cleaning
 

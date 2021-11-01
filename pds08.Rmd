@@ -50,7 +50,7 @@ metaphlan_b_e_umap = umap(metaphlan_b_e)
 umap_output = metaphlan_b_e_umap$layout %>% data.frame %>% rownames_to_column('key') %>% as.tibble %>% mutate(Sample_ID = strsplit(key,'_') %>% map_chr(1),timepoint = strsplit(key,'_') %>% map_chr(2))
 umap_output = left_join(umap_output,metadata,by='Sample_ID')
 
-ggplot(data = umap_output %>% filter(timepoint == 'baseline'),aes(x=X1,y=X2,group=Sample_ID,color=as.factor(d_bm3))) + geom_point(size=3,aes(shape=timepoint)) + geom_line(color='grey') 
+ggplot(data = umap_output %>% filter(timepoint == 'endpoint'),aes(x=X1,y=X2,group=Sample_ID,color=as.factor(rx))) + geom_point(size=3,aes(shape=timepoint)) + geom_line(color='grey') 
 ggplot(data = umap_output %>% filter(timepoint == 'endpoint'),aes(x=X1,y=X2,group=Sample_ID,color=as.factor(d_bm3))) + geom_point(size=3,aes(shape=timepoint)) + geom_line(color='grey') 
 ggplot(data = umap_output,aes(x=X1,y=X2,group=Sample_ID,color=as.factor(d_bm3))) + geom_point(size=3,aes(shape=timepoint)) + geom_line(color='grey') 
 
@@ -97,7 +97,7 @@ pheatmap::pheatmap(mat = beta_dist, show_rownames = F,show_colnames = T,cluster_
 # endpoint
 beta_dist = as.matrix(vegdist(endpoint_metaphlan,index = "bray"))
 
-pheatmap::pheatmap(mat = beta_dist, show_rownames = F,show_colnames = T,cluster_rows=T,cluster_cols =T,annotation_row = metadata %>% select(bristol,bm_weekly,rx))
+pheatmap::pheatmap(mat = beta_dist, show_rownames = F,show_colnames = T,cluster_rows=T,cluster_cols =T,annotation_row = metadata %>% select(b_bm_weekly,bm_weekly,rx))
 ```
 
 ```{r}
