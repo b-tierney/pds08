@@ -18,6 +18,7 @@ library(vegan)
 library(reshape2)
 library(ggrepel)
 library(broom)
+library(ggpubr)
 
 theme_set(theme_cowplot())
 ```
@@ -89,7 +90,9 @@ endpoint_metaphlan = readRDS('metaphlan_endpoint.rds') %>% mutate(Sample_ID = pa
 delta_metaphlan = readRDS('metaphlan_delta.rds') %>% mutate(Sample_ID = paste(Sample_ID,'_delta',sep=''))
 
 data = bind_rows(baseline_metaphlan,endpoint_metaphlan) %>% column_to_rownames('Sample_ID') 
+#data = data %>% t
 data = data %>% select(all_of(grep('s__',colnames(data)))) %>% t
+#data = data %>% select(!all_of(grep('g__',colnames(data)))) %>% t
 #data = data[rowMeans(data)>.0001,] 
 
 toremove = colnames(data) %>% strsplit('_') %>% map_chr(1) %>% table %>% data.frame %>% filter(Freq!=2) %>% select(colnames(.)[1]) %>% unlist %>% unname
@@ -143,18 +146,24 @@ beta_dist = as.matrix(vegdist(metaphlan_b_e,index = "bray"))
 beta_dist_b = as.matrix(vegdist(baseline_metaphlan %>% column_to_rownames('Sample_ID'),index = "bray"))
 beta_dist_e = as.matrix(vegdist(endpoint_metaphlan %>% column_to_rownames('Sample_ID'),index = "bray"))
 
+
 pheatmap::pheatmap(mat = beta_dist, show_rownames = F,show_colnames = T,cluster_rows=T,cluster_cols =T,annotation_row = abdata_long %>% select(RESP_STATUS,IMPROVED))
 
+pdf('microbiome_baseline_beta.pdf',width=10,height=10)
 pheatmap::pheatmap(mat = beta_dist_b, show_rownames = F,show_colnames = T,cluster_rows=T,cluster_cols =T,annotation_row = abdata_long %>% select(RESP_STATUS,IMPROVED))
+dev.off()
 
 pheatmap::pheatmap(mat = beta_dist_e, show_rownames = F,show_colnames = T,cluster_rows=T,cluster_cols =T,annotation_row = abdata_long %>% select(RESP_STATUS,IMPROVED))
 
 melted = melt(beta_dist) %>% mutate(id=strsplit(as.character(Var1),'_') %>% map_chr(1),id2=strsplit(as.character(Var2),'_') %>% map_chr(1)) %>% filter(id == id2,Var1!=Var2) %>% mutate(tp = strsplit(as.character(Var1),'_') %>% map_chr(2)) %>% filter(tp =='baseline')%>% select(id,value) %>% rename(Sample_ID = id)
 melted_meta = left_join(melted, metadata %>% select(Sample_ID,RESP_STATUS,IMPROVED))
 
-melted_meta %>% arrange(value)
 
-ggplot(melted_meta %>% arrange(value),aes(x=RESP_STATUS,y=value)) + geom_point(aes(color=RESP_STATUS)) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggplot(melted_meta %>% arrange(value) %>% filter(!is.na(RESP_STATUS)),aes(x=RESP_STATUS,y=value)) + geom_point(aes(color=RESP_STATUS)) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+foo = compare_means(data = melted_meta,value ~ RESP_STATUS,method="t.test")
+write.csv(foo,'~/temp.csv')
+ggsave('beta_self_dis.pdf',width=6,height=6)
+anova(lm(value ~ RESP_STATUS,data=melted_meta))
 
 ```
 
@@ -162,68 +171,86 @@ ggplot(melted_meta %>% arrange(value),aes(x=RESP_STATUS,y=value)) + geom_point(a
 
 #look at diversity between responders and nonresponders
 
-#### NEED TO CHECK IF HOLDS UP FOR ALTERNATIVE TAXONOMIC METHOD 
-
 setwd('~/Desktop/google_drive/My Drive/pds08/')
 
 abdata_div = abdata %>%  select(Sample_ID,shannon,simpson,richness,RESP_STATUS,rx,timepoint,IMPROVED)
 abdata_div_melted = melt(abdata_div)
 
-ggplot(data = abdata_div_melted, aes(x = as.factor(timepoint), y = value)) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +stat_compare_means(paired = T,method='wilcox.test')+ geom_point(aes(fill=as.factor(timepoint),group=Sample_ID), position = position_dodge(0.2)) + geom_line(aes(group=Sample_ID),color='grey',position = position_dodge(0.2)) + facet_grid(cols=vars(RESP_STATUS),rows=vars(variable),scales='free')
-#ggsave('rnr_div.pdf',width=15,height=15)
+ggplot(data = abdata_div_melted, aes(x = as.factor(timepoint), y = value)) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +stat_compare_means(paired = T,method='t.test')+ geom_point(aes(fill=as.factor(timepoint),group=Sample_ID), position = position_dodge(0.2)) + geom_line(aes(group=Sample_ID),color='grey',position = position_dodge(0.2)) + facet_grid(cols=vars(RESP_STATUS),rows=vars(variable),scales='free')
+ggsave('~/rnr_div.pdf',width=15,height=15)
 
 ggplot(data = abdata_div_melted %>% filter(timepoint == 'baseline'), aes(x = as.factor(RESP_STATUS), y = value)) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ geom_point(aes(fill=as.factor(timepoint),group=Sample_ID), position = position_dodge(0.2)) + facet_grid(rows=vars(variable),scales='free')
+ggsave('~/rnr_div_base.pdf',width=15,height=15)
 
-compare_means(data = abdata_div_melted %>% filter(timepoint == 'baseline') %>% filter(variable=='richness') ,value ~ RESP_STATUS)
-compare_means(data = abdata_div_melted %>% filter(timepoint == 'baseline') %>% filter(variable=='shannon') ,value ~ RESP_STATUS)
-compare_means(data = abdata_div_melted %>% filter(timepoint == 'baseline') %>% filter(variable=='simpson') ,value ~ RESP_STATUS)
+compare_means(data = abdata_div_melted %>% filter(timepoint == 'baseline') %>% filter(variable=='richness') ,value ~ RESP_STATUS,method='t.test')
+compare_means(data = abdata_div_melted %>% filter(timepoint == 'baseline') %>% filter(variable=='shannon') ,value ~ RESP_STATUS,method='t.test')
+compare_means(data = abdata_div_melted %>% filter(timepoint == 'baseline') %>% filter(variable=='simpson') ,value ~ RESP_STATUS,method='t.test')
 
-ggplot(data = abdata_div_melted, aes(x = as.factor(timepoint), y = value)) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +stat_compare_means(paired = T,method='wilcox.test')+ geom_point(aes(fill=as.factor(timepoint),group=Sample_ID), position = position_dodge(0.2)) + geom_line(aes(group=Sample_ID),color='grey',position = position_dodge(0.2)) + facet_grid(cols=vars(IMPROVED),rows=vars(variable),scales='free')
+ggplot(data = abdata_div_melted, aes(x = as.factor(timepoint), y = value)) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +stat_compare_means(paired = T,method='t.test')+ geom_point(aes(fill=as.factor(timepoint),group=Sample_ID), position = position_dodge(0.2)) + geom_line(aes(group=Sample_ID),color='grey',position = position_dodge(0.2)) + facet_grid(cols=vars(IMPROVED),rows=vars(variable),scales='free')
 
 ggplot(data = abdata_div_melted %>% filter(timepoint == 'baseline'), aes(x = as.factor(IMPROVED), y = value)) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ geom_point(aes(fill=as.factor(timepoint),group=Sample_ID), position = position_dodge(0.2)) + facet_grid(rows=vars(variable),scales='free')
 
-compare_means(data = abdata_div_melted %>% filter(timepoint == 'baseline') %>% filter(variable=='richness') ,value ~ IMPROVED)
-compare_means(data = abdata_div_melted %>% filter(timepoint == 'baseline') %>% filter(variable=='shannon') ,value ~ IMPROVED)
-compare_means(data = abdata_div_melted %>% filter(timepoint == 'baseline') %>% filter(variable=='simpson') ,value ~ IMPROVED)
+compare_means(data = abdata_div_melted %>% filter(timepoint == 'baseline') %>% filter(variable=='richness') ,value ~ IMPROVED,method='t.test')
+compare_means(data = abdata_div_melted %>% filter(timepoint == 'baseline') %>% filter(variable=='shannon') ,value ~ IMPROVED,method='t.test')
+compare_means(data = abdata_div_melted %>% filter(timepoint == 'baseline') %>% filter(variable=='simpson') ,value ~ IMPROVED,method='t.test')
 
 ```
 
 ```{r}
 # look for bifidogenic effect
-
+setwd('~/Desktop/google_drive/My Drive/pds08/')
 bifidos = colnames(abdata)[grepl('Bifido',colnames(abdata))]
 
 abdata_bif = abdata %>%  select(Sample_ID,all_of(bifidos),RESP_STATUS,rx,timepoint)
 abdata_bif_melted = melt(abdata_bif) 
 abdata_bif_melted$variable = strsplit(as.character(abdata_bif_melted$variable),"\\.s__") %>% map_chr(2)
 
-ggplot(data = abdata_bif_melted, aes(x = as.factor(timepoint), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point() + geom_line(aes(group=Sample_ID),color='grey') + facet_grid(cols=vars(RESP_STATUS),rows = vars(variable),scales='free')+theme(strip.text.y = element_text(angle = 0))+ stat_compare_means(paired=T,method='wilcox.test')
+ggplot(data = abdata_bif_melted, aes(x = as.factor(timepoint), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point() + geom_line(aes(group=Sample_ID),color='grey') + facet_grid(cols=vars(RESP_STATUS),rows = vars(variable),scales='free')+theme(strip.text.y = element_text(angle = 0))+ stat_compare_means(paired=T,method='t.test')
+ggsave('bifido_change_across_tp.pdf',width=30,height=15)
 
 ggplot(data = abdata_bif_melted %>% filter(timepoint == 'baseline'), aes(x = as.factor(RESP_STATUS), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point() + facet_grid(rows = vars(variable),scales='free')+theme(strip.text.y = element_text(angle = 0))
+ggsave('bifido_baseline.pdf',width=20,height=15)
 compare_means(data = abdata_bif_melted %>% filter(timepoint == 'baseline') ,value ~ RESP_STATUS)
 ggplot(data = abdata_bif_melted %>% filter(timepoint == 'endpoint'), aes(x = as.factor(RESP_STATUS), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point() + facet_grid(rows = vars(variable),scales='free')+theme(strip.text.y = element_text(angle = 0))
 compare_means(data = abdata_bif_melted %>% filter(timepoint == 'endpoint') ,value ~ RESP_STATUS)
- 
+ ggsave('bifido_endpoint.pdf',width=30,height=15)
+
 ###OVERALL
 abdata_bif_melted_all_bif =abdata_bif_melted %>% select(Sample_ID,RESP_STATUS,timepoint,value,rx) %>% group_by(Sample_ID,timepoint,RESP_STATUS) %>% mutate(value=sum(value))
-ggplot(data = abdata_bif_melted_all_bif, aes(x = as.factor(timepoint), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point() + geom_line(aes(group=Sample_ID),color='grey') + facet_grid(cols=vars(RESP_STATUS)) + stat_compare_means(paired=T,method='wilcox.test')
+ggplot(data = abdata_bif_melted_all_bif, aes(x = as.factor(timepoint), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point() + geom_line(aes(group=Sample_ID),color='grey') + facet_grid(cols=vars(RESP_STATUS)) + stat_compare_means(paired=T,method='t.test')
+ggsave('bifido_change_overall.pdf',width=20,height=15)
 ggplot(data = abdata_bif_melted_all_bif %>% filter(timepoint == 'baseline'), aes(x = as.factor(RESP_STATUS), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point()
+ggsave('bifido_base_overall.pdf',width=20,height=15)
 compare_means(data = abdata_bif_melted_all_bif %>% filter(timepoint == 'baseline') ,value ~ RESP_STATUS)
 ggplot(data = abdata_bif_melted_all_bif %>% filter(timepoint == 'endpoint'), aes(x = as.factor(RESP_STATUS), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point()
+ggsave('bifido_end_overall.pdf',width=30,height=15)
 compare_means(data = abdata_bif_melted_all_bif %>% filter(timepoint == 'endpoint') ,value ~ RESP_STATUS)
 
 ### REPEAT BY RX
 
-ggplot(data = abdata_bif_melted, aes(x = as.factor(timepoint), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point() + geom_line(aes(group=Sample_ID),color='grey') + facet_grid(rows=vars(rx),cols = vars(variable),scales='free')+theme(strip.text.x = element_text(angle = 0)) +theme(axis.text.y = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggplot(data = abdata_bif_melted, aes(x = as.factor(timepoint), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point() + geom_line(aes(group=Sample_ID),color='grey') + facet_grid(cols=vars(rx),rows = vars(variable),scales='free')+theme(strip.text.x = element_text(angle = 0)) +theme(axis.text.y = element_text(angle = 90, vjust = 0.5, hjust=1)) + stat_compare_means(paired=T,method='t.test')
+ggsave('bifido_rx_timepoint.pdf',width=10,height=20)
 
-ggplot(data = abdata_bif_melted_all_bif, aes(x = as.factor(timepoint), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point() + geom_line(aes(group=Sample_ID),color='grey') + facet_grid(cols=vars(rx))
+ggplot(data = abdata_bif_melted_all_bif, aes(x = as.factor(timepoint), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point() + geom_line(aes(group=Sample_ID),color='grey') + facet_grid(cols=vars(rx)) + stat_compare_means(paired=T,method='t.test')
+ggsave('bifido_rx_overall_timepoint.pdf',width=5,height=4)
+
 ```
 
 ```{r}
 #baseline multinomial associations
 
+data = bind_rows(baseline_metaphlan,endpoint_metaphlan) %>% column_to_rownames('Sample_ID') 
+#data = data %>% select(!all_of(grep('g__',colnames(data)))) 
+data = data %>% select(all_of(grep('s__',colnames(data)))) %>% t
 
-####TRY WITH GENUS 
+toremove = colnames(data) %>% strsplit('_') %>% map_chr(1) %>% table %>% data.frame %>% filter(Freq!=2) %>% select(colnames(.)[1]) %>% unlist %>% unname
+data = data %>% data.frame%>% select(!(grep(paste(toremove, collapse="|"), colnames(data))))
+
+# merge all data into one frame
+metaphlan_s = data %>% t %>% data.frame %>% rownames_to_column('Sample_ID') %>% mutate(timepoint = strsplit(Sample_ID,'_') %>% map_chr(2)) %>% mutate(Sample_ID = strsplit(Sample_ID,'_') %>% map_chr(1))
+
+abdata = left_join(metaphlan_s,metadata,by='Sample_ID') %>% filter(!is.na(RESP_STATUS))
+
 abdata$RESP_STATUS = factor(abdata$RESP_STATUS,levels=c("NOCHANGE-TREATMENT","IMPROVED-PLACEBO","RESPONDER","NOCHANGE-PLACEBO","WORSE-PLACEBO","WORSE-TREATMENT"))
 
 abdata_b = abdata %>% filter(timepoint=='baseline') 
@@ -238,9 +265,12 @@ regcolumns = colnames(abdata_b)[grep('k__',colnames(abdata_b))]
 #abdata_b = abdata_b %>% filter(RESP_STATUS!='NONRESP')
 #abdata_e = abdata_e %>% filter(RESP_STATUS!='NONRESP')
 
+abdata_b = abdata_b %>% filter(RESP_STATUS == 'RESPONDER' | RESP_STATUS == 'NOCHANGE-TREATMENT')
+abdata_b$RESP_STATUS = as.numeric(factor(abdata_b$RESP_STATUS)) -1
+
 output = list()
 for(r in regcolumns){
-  output[[r]] = multinom(data = abdata_b, RESP_STATUS ~ age+ log(abdata_b[,r]+0.00001),family='binomial') %>% tidy %>% mutate(microbial_var = r %>% strsplit('s__') %>% map_chr(2)) %>% filter(term!='(Intercept)',term!='age')
+  output[[r]] = glm(data = abdata_b,family='binomial', RESP_STATUS ~ age+ (abdata_b[,r])) %>% tidy %>% mutate(microbial_var = r) %>% filter(term!='(Intercept)',term!='age')
 }
 output_merged = bind_rows(output) %>% mutate(adj=p.adjust(p.value,method = 'BY'))
 
@@ -321,7 +351,7 @@ ggplot(data = merged_output_melted_summary_overall_mdat %>% filter(timepoint == 
 ### RES MECHS 
 
 # baseline counts
-ggplot(data = merged_output_melted_counted_mdat %>% filter(timepoint=='baseline',variable == 'Resistance.Mechanism',!is.na(RESP_STATUS)),aes(x=Sample_ID,y=n)) + geom_bar(stat='identity') + facet_grid(cols=vars(RESP_STATUS),rows=vars(value),scales='free') + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+theme(axis.text.y = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggplot(data = merged_output_melted_counted_mdat %>% filter(timepoint=='baseline',variable == 'Resistance.Mechanism',!is.na(RESP_STATUS)),aes(x=Sample_ID,y=n)) + geom_bar(stat='identity') + facet_grid(cols=vars(RESP_STATUS),rows=vars(value),scales='free') + theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust=1),axis.text.y = element_text(angle = 90, vjust = 0.5, hjust=1))
 
 # endpoint counts
 ggplot(data = merged_output_melted_counted_mdat %>% filter(timepoint=='endpoint',variable == 'Resistance.Mechanism',!is.na(RESP_STATUS)),aes(x=Sample_ID,y=n)) + geom_bar(stat='identity') + facet_grid(cols=vars(RESP_STATUS),rows=vars(value),scales='free') + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+theme(axis.text.y = element_text(angle = 90, vjust = 0.5, hjust=1))
