@@ -206,7 +206,7 @@ abdata_bif_melted = melt(abdata_bif)
 abdata_bif_melted$variable = strsplit(as.character(abdata_bif_melted$variable),"\\.s__") %>% map_chr(2)
 
 ggplot(data = abdata_bif_melted, aes(x = as.factor(timepoint), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point() + geom_line(aes(group=Sample_ID),color='grey') + facet_grid(cols=vars(RESP_STATUS),rows = vars(variable),scales='free')+theme(strip.text.y = element_text(angle = 0))+ stat_compare_means(paired=T,method='t.test')
-ggsave('bifido_change_across_tp.pdf',width=30,height=15)
+ggsave('bifido_change_across_tp.pdf',width=30,height=40)
 
 ggplot(data = abdata_bif_melted %>% filter(timepoint == 'baseline'), aes(x = as.factor(RESP_STATUS), y = log(value+0.00001))) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point() + facet_grid(rows = vars(variable),scales='free')+theme(strip.text.y = element_text(angle = 0))
 ggsave('bifido_baseline.pdf',width=20,height=15)
