@@ -49,7 +49,7 @@ colnames(bracken) = gsub('_02','_endpoint',colnames(bracken))
 
 bracken_s = bracken %>% filter(taxonomy_lvl=='S') %>% select(-taxonomy_lvl)
 
-metadata = readRDS('pds08_metadata.rds') 
+metadata = readRDS('pds08_metadata.rds') # %>% filter(b_bm_weekly<=4.2)
 #demarcate responder vs nonresponder
 metadata = metadata %>% mutate(RESP_STATUS = as.factor(if_else(rx != 'Treatment',"PLACEBO",if_else(d_bm_weekly>=2,'RESPONDER',if_else(abs(d_bm_weekly)<2,'NOCHANGE-TREATMENT','WORSE-TREATMENT')))))
 metadata = metadata %>% mutate(RESP_STATUS = as.factor(if_else(RESP_STATUS != 'PLACEBO',as.character(RESP_STATUS),if_else(d_bm_weekly>=2,'IMPROVED-PLACEBO',if_else(abs(d_bm_weekly)<2,'NOCHANGE-PLACEBO','WORSE-PLACEBO')))))
@@ -270,13 +270,15 @@ regcolumns = colnames(abdata_b)[grep('k__',colnames(abdata_b))]
 #abdata_b = abdata_b %>% filter(RESP_STATUS!='NONRESP')
 #abdata_e = abdata_e %>% filter(RESP_STATUS!='NONRESP')
 
-abdata_b = abdata_b %>% filter(RESP_STATUS == 'RESPONDER' | RESP_STATUS == 'NOCHANGE-TREATMENT')
-abdata_b$RESP_STATUS = as.numeric(factor(abdata_b$RESP_STATUS)) -1
+#abdata_b = abdata_b %>% filter(RESP_STATUS == 'RESPONDER' | RESP_STATUS == 'NOCHANGE-TREATMENT')
+#abdata_b$RESP_STATUS = as.numeric(factor(abdata_b$RESP_STATUS)) -1
 
 output = list()
 for(r in regcolumns){
-  output[[r]] = glm(data = abdata_b,family='binomial', RESP_STATUS ~ age+ (abdata_b[,r])) %>% tidy %>% mutate(microbial_var = r) %>% filter(term!='(Intercept)',term!='age')
-}
+  regout = multinom(data = abdata_b,family='binomial', RESP_STATUS ~ age+ (abdata_b[,r])) %>% tidy %>% mutate(microbial_var = r) %>% filter(term!='(Intercept)',term!='age')
+  prevs = abdata_b %>% select(r,RESP_STATUS) %>% mutate(prev = if_else(get(r)>0,1,0)) %>% group_by(RESP_STATUS) %>% summarize(prev=sum(prev))
+output[[r]] =left_join(regout,prevs,by=c('y.level'='RESP_STATUS'))
+  }
 output_merged = bind_rows(output) %>% mutate(adj=p.adjust(p.value,method = 'BY'))
 
 for(val in unique(output_merged$y.level)){
@@ -288,11 +290,24 @@ for(val in unique(output_merged$y.level)){
 ```{r}
 # plot the most significant associations
 
-microbes_of_interest = output_merged %>% filter(adj<0.05,y.level == 'RESPONDER') %>% arrange(desc(abs(estimate))) %>% select(microbial_var) %>% unlist %>% unname %>% unique
+setwd('~/Desktop/google_drive/My Drive/pds08/association_plots_species')
+
+microbes_of_interest = output_merged %>% filter(adj<0.05) %>% arrange(desc(abs(prev))) %>% select(microbial_var) %>% unlist %>% unname %>% unique
 
 for(m in microbes_of_interest){
-  abdata_b %>% select(RESP_STATUS,all_of(grep(m,colnames(abdata_b)))) %>% filter(RESP_STATUS == 'RESPONDER' | RESP_STATUS == 'NOCHANGE-TREATMENT')
+ggplot(abdata_b %>% select(RESP_STATUS,all_of(grep(m,colnames(abdata_b)))),aes(x=RESP_STATUS,y=abdata_b[,m])) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + geom_point()
+  ggsave(paste(m,'_multinom.pdf',sep=''))
 }
+
+```
+
+```{r}
+#rulefit regression
+rulefit_data = abdata %>% filter(timepoint=='baseline') %>% select(-c(d_bm1,d_bm2,d_bm3,bm_weekly,RESP_STATUS,RESP_V_NONRESP,IMPROVED,Randomization_Assignment,Seed_ID,id)) %>% select_if(~ !any(is.na(.))) %>% mutate_if(is.character,as.factor)
+rulefit_data = Filter(function(x)(length(unique(x))>1), rulefit_data)
+
+set.seed(42)
+rulefit_output <- pre(d_bm_weekly ~ ., data = rulefit_data)
 
 ```
 
@@ -307,6 +322,7 @@ output_merged = bind_rows(output) %>% mutate(adj=p.adjust(p.value,method = 'BY')
 
 for(val in unique(output_merged$y.level)){
   print(ggplot(data = output_merged %>% filter(y.level == val),aes(x=estimate,y=-log10(adj))) + geom_point() + xlim(-5,5) +ggtitle(unique(output_merged%>% filter(y.level == val)%>% select(y.level) %>% unique)) + ylab('-log10(qval)') + geom_label_repel(data = output_merged%>% filter(y.level == val) %>% arrange(adj) %>% filter(adj<0.05) %>% head(15),aes(label = microbial_var),box.padding   = 0.1, point.padding = 0.1,max.overlaps=100,size=3,segment.color = 'grey50')+geom_hline(yintercept = -log10(0.05)))
+  ggplot(abdata_b %>% select(RESP_STATUS,all_of(grep(m,colnames(abdata_b)))),aes(x=RESP_STATUS,y=abdata_b[,m])) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 }
 
 ```
