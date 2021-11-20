@@ -14,11 +14,15 @@ metadata_file = args[[1]]
 abundance_data_file = args[[2]]
 datatype = args[[3]]
 
-#metadata_file='pds08_metadata.rds'
-#abundance_data_file = 'metaphlan_endpoint_diversity.rds'
-
-metadata = readRDS(metadata_file) %>% mutate(b_bm_weekly = log(bm_weekly)) %>% mutate(b_bm_weekly = log(bm_weekly))
+metadata = readRDS(metadata_file)
 abundance_data = readRDS(abundance_data_file)
+
+metadata = metadata %>% mutate(RESP_STATUS = as.factor(if_else(rx != 'Treatment',"PLACEBO",if_else(d_bm_weekly>=1,'RESPONDER',if_else(abs(d_bm_weekly)<1,'NOCHANGE-TREATMENT','NOCHANGE-TREATMENT')))))
+metadata = metadata %>% mutate(RESP_STATUS = as.factor(if_else(RESP_STATUS != 'PLACEBO',as.character(RESP_STATUS),if_else(d_bm_weekly>=1,'IMPROVED-PLACEBO',if_else(abs(d_bm_weekly)<1,'NOCHANGE-PLACEBO','NOCHANGE-PLACEBO')))))
+metadata = metadata %>% mutate(IMPROVED = if_else(RESP_STATUS == 'IMPROVED-PLACEBO' | RESP_STATUS == 'RESPONDER','IMPROVED',if_else(RESP_STATUS == 'NOCHANGE-PLACEBO' | RESP_STATUS == 'NOCHANGE-TREATMENT','NOCHANGE','NOCHANGE')))
+
+metadata = metadata %>% mutate(RESP_V_NONRESP = if_else(RESP_STATUS == 'RESPONDER',1,if_else(RESP_STATUS == 'NOCHANGE-TREATMENT',0,-1))) 
+metadata$RESP_V_NONRESP[metadata$RESP_V_NONRESP==-1] = NA
 
 # remove rows that are identical to each other and therefore encode no additional information + add hypotheses (big problem for metaphlan)
 # this should take the HIGHER order
@@ -36,8 +40,18 @@ if(!grepl('delta',abundance_data_file) & !grepl('diversity',abundance_data_file)
 }
 
 merged_data = inner_join(abundance_data, metadata, by='Sample_ID')
+merged_data = merged_data %>% filter(!is.na(RESP_V_NONRESP))
 
 # compute associations of form microbe ~ age + treatment
-regression_output_microbe_treatment = map(microbiome_vars, function(x) glm(data = merged_data, get(x) ~ age + rx) %>% tidy %>% filter(term!='(Intercept)',term!='age') %>% mutate(term = x)) %>% bind_rows  %>% mutate(bh = p.adjust(p.value))
+regression_output_microbe_treatment = map(microbiome_vars, function(x) glm(data = merged_data, family = 'binomial',RESP_V_NONRESP ~ age + b_bm_weekly + get(x)) %>% tidy %>% filter(term!='(Intercept)',term!='age',term!='b_bm_weekly') %>% mutate(term = x)) %>% bind_rows  %>% mutate(bh = p.adjust(p.value))
 
 saveRDS(regression_output_microbe_treatment,paste(datatype,'_associations/regression_output_microbe_treatment_',abundance_data_file,sep=''))
+
+
+
+
+
+
+
+
+

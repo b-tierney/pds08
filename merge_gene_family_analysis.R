@@ -5,7 +5,7 @@ library(stringi)
 
 files=list.files()
 
-basenames  = map(files, function(x) gsub('regression_output_outcome_microbe_','',x) %>% gsub("_genefamilies_baseline.rds","",.) %>% strsplit(., "") %>% unlist %>% rev(.) %>% paste(.,collapse="") %>% gsub("[^_]*_(.*)", "\\1", .) %>% strsplit(., "") %>% unlist %>% rev(.) %>% paste(.,collapse="")) %>% unlist %>% unname 
+basenames  = map(files, function(x) gsub('regression_output_microbe_treatment_','',x) %>% gsub("_genefamilies_baseline.rds","",.) %>% strsplit(., "") %>% unlist %>% rev(.) %>% paste(.,collapse="") %>% gsub("[^_]*_(.*)", "\\1", .) %>% strsplit(., "") %>% unlist %>% rev(.) %>% paste(.,collapse="")) %>% unlist %>% unname 
 
 mapping = tibble(files,basenames)
 
