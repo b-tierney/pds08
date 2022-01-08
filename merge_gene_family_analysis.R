@@ -9,6 +9,7 @@ basenames  = map(files, function(x) gsub('regression_output_microbe_treatment_',
 
 mapping = tibble(files,basenames)
 
+output=list()
 for(b in basenames){
 	print(b)
 	subfiles = mapping %>% filter(basenames==b) %>% select(files)

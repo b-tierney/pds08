@@ -16,16 +16,12 @@ merged_metadata = left_join(metadata,sequencing_data,by=c('id'='Curebase_ID')) %
 merged_metadata = merged_metadata %>% mutate(rx = if_else(rx == 'Active','Treatment',rx))
 
 #demarcate responder vs nonresponder
-merged_metadata = merged_metadata %>% mutate(RESP_STATUS = as.factor(if_else(rx != 'Treatment',"PLACEBO",if_else(b_bm_weekly<=4.2 & d_bm_weekly>1,'RESP','NONRESP'))))
-merged_metadata$RESP_STATUS = factor(merged_metadata$RESP_STATUS,levels=c('PLACEBO','NONRESP','RESP'))
+metadata = metadata %>% mutate(RESP_STATUS = as.factor(if_else(rx != 'Treatment',"PLACEBO",if_else(d_bm_weekly>=1,'RESPONDER',if_else(abs(d_bm_weekly)<1,'NOCHANGE-TREATMENT','NOCHANGE-TREATMENT')))))
+metadata = metadata %>% mutate(RESP_STATUS = as.factor(if_else(RESP_STATUS != 'PLACEBO',as.character(RESP_STATUS),if_else(d_bm_weekly>=1,'IMPROVED-PLACEBO',if_else(abs(d_bm_weekly)<1,'NOCHANGE-PLACEBO','NOCHANGE-PLACEBO')))))
+metadata = metadata %>% mutate(IMPROVED = if_else(RESP_STATUS == 'IMPROVED-PLACEBO' | RESP_STATUS == 'RESPONDER','IMPROVED',if_else(RESP_STATUS == 'NOCHANGE-PLACEBO' | RESP_STATUS == 'NOCHANGE-TREATMENT','NOCHANGE','NOCHANGE')))
 
-merged_metadata = merged_metadata %>% mutate(IMPROVED = as.factor(if_else(b_bm_weekly<=4.2 & d_bm_weekly>1,'YES','NO'))) %>% filter(!is.na(RESP_STATUS))
-
-merged_metadata = merged_metadata %>% mutate(RESP_V_NONRESP = as.factor(if_else(RESP_STATUS == 'RESP',1,if_else(RESP_STATUS== 'NONRESP',0,-1))))
-merged_metadata$RESP_V_NONRESP[merged_metadata$RESP_V_NONRESP==-1]=NA
-
-merged_metadata$RESP_V_NONRESP = as.factor(as.character(merged_metadata$RESP_V_NONRESP))
-
+metadata = metadata %>% mutate(RESP_V_NONRESP = if_else(RESP_STATUS == 'RESPONDER',1,if_else(RESP_STATUS == 'NOCHANGE-TREATMENT',0,-1))) 
+metadata$RESP_V_NONRESP[metadata$RESP_V_NONRESP==-1] = NA
 saveRDS(merged_metadata,'pds08_metadata.rds')
 ### abundance cleaning
 
