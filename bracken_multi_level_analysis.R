@@ -12,7 +12,7 @@ library(ggpubr)
 theme_set(theme_cowplot())
 
 
-setwd('~/Desktop/google_drive/My Drive/pds08/')
+setwd('~/Desktop/google_drive/My Drive/SEED_HEALTH/PDS08 (1)/')
 
 build_bracken_abmat <- function(brackenfile,level){
   bracken = read.csv(brackenfile,sep='\t',header=T)
@@ -85,13 +85,14 @@ build_bracken_abmat <- function(brackenfile,level){
   ggsave(paste('richness_div_analysis_bracken/rnr_div_end_',level,'.pdf',sep=''),width=15,height=15)
   
   toreturn = ggplot(data = abdata_div_melted %>% filter(timepoint == 'baseline',variable == 'richness'), aes(x = as.factor(RESP_STATUS), y = value)) + geom_boxplot()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ geom_point(aes(group=Sample_ID), position = position_dodge(0.2)) + ggtitle(toupper(level)) + stat_compare_means(comparisons = my_comparisons, method = 'wilcox.test')
+  toreturn2 = abdata_div_melted %>% mutate(level=level)
   
   abdata_div_melted_rnr = abdata_div_melted %>% filter(RESP_STATUS == 'RESPONDER' | RESP_STATUS == 'NOCHANGE-TREATMENT') %>% mutate(RESP_STATUS = as.numeric(as.factor(as.character(RESP_STATUS)))-1)
   
   abdata_div_melted_rnr = left_join(abdata_div_melted_rnr,metadata %>% select(Sample_ID,age,b_bm_weekly))
   
   glmout = glm(data = abdata_div_melted_rnr %>% filter(timepoint == 'baseline',variable == 'richness'), RESP_STATUS ~ age +b_bm_weekly+ value,family = 'binomial') %>% tidy %>% mutate(level = level)
-  return(list(toreturn,glmout))
+  return(list(toreturn,glmout,toreturn2))
 }
 
 species = build_bracken_abmat("bracken_output/merged_bracken_output.tsv",'species')
@@ -110,6 +111,7 @@ ggsave(plot = phylum[[1]],'richness_div_analysis_bracken/phylum_singleplot.pdf',
 glm_output = bind_rows(phylum[[2]],class[[2]],order[[2]],family[[2]],genus[[2]],species[[2]])
 write.csv(glm_output,'~/Desktop/google_drive/My Drive/pds08/richness_div_analysis_bracken//glm_output_bracken.csv')
 
+rawdata = bind_rows(phylum[[3]],class[[3]],order[[3]],family[[3]],genus[[3]],species[[3]])
 
 
 

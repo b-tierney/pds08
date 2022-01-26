@@ -12,7 +12,7 @@ library(ggpubr)
 
 theme_set(theme_cowplot())
 
-setwd('~/Desktop/google_drive/My Drive/pds08/')
+setwd('~/Desktop/gdrive/SEED_HEALTH/PDS08 (1)/')
 
 my_comparisons <- list( c("NOCHANGE-PLACEBO", "IMPROVED-PLACEBO"), c("NOCHANGE-TREATMENT", "RESPONDER"))
 

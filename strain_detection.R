@@ -1,6 +1,6 @@
 library(tidyverse)
 
-setwd('~/Desktop/google_drive/My Drive/pds08/metapan/')
+setwd('~/Desktop/google_drive/My Drive/SEED_HEALTH/PDS08 (1)/metapan/')
 
 mapping = read.csv('metapangenome_contig_prefix_mapping',header=F,sep=' ') %>% mutate(V1 = strsplit(V1,'\\.') %>% map_chr(1))
 colnames(mapping) = c('species','anvio_id')
