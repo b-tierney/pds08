@@ -11,7 +11,6 @@ library(ggpubr)
 
 theme_set(theme_cowplot())
 
-setwd('~/Desktop/google_drive/My Drive/pds08/')
 
 metadata = readRDS('pds08_metadata.rds') 
 #demarcate responder vs nonresponder
