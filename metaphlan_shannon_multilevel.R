@@ -12,8 +12,6 @@ library(ggpubr)
 
 theme_set(theme_cowplot())
 
-setwd('~/Desktop/google_drive/My Drive/pds08/')
-
 my_comparisons <- list( c("NOCHANGE-PLACEBO", "IMPROVED-PLACEBO"), c("NOCHANGE-TREATMENT", "RESPONDER"))
 
 metadata = readRDS('pds08_metadata.rds') #%>% filter(b_bm_weekly<=4.2)
