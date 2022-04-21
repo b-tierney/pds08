@@ -1,0 +1,251 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is a document for pd-08 manuscript figures
+```{r}
+set.seed(4663)
+# load data
+fig2 <- readRDS("~/Documents/SEED/projects/PDS-08/manuscript/figs/strain_detection_log_transformed.rds")
+alpha.div <- readRDS("~/Documents/SEED/projects/PDS-08/manuscript/figs/bracken_div_output.rds")
+metadata <- readRDS("/Users/ecekartal/Documents/SEED/projects/PDS-08/manuscript/figs/pds08_metadata.rds")
+bifido <- readRDS("~/Documents/SEED/projects/PDS-08/manuscript/figs/bifidogenic_log_transformed.rds")
+metaphlan_richness <- readRDS("~/Documents/SEED/projects/PDS-08/manuscript/figs/metaphlan_analysis_for_ece_20220129.rds")
+
+# load library
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(ggpubr)
+setwd("~/Documents/SEED/projects/PDS-08/manuscript/figs/")
+folder.results <- paste0(getwd(), "/")
+```
+
+```{r}
+# add treatment/placebo info
+fig2$rx <- metadata$rx[match(fig2$Sample_ID, metadata$Sample_ID)]
+#remove NA BLQVKQ and ENTXMR
+fig2 <- fig2 %>% filter(!is.na(rx)) %>%  filter(Sample_ID!="ENTXMR")
+#define test groups
+comps <- list( c("baseline", "endpoint")) 
+
+ p2 <-ggplot(fig2, aes(x=timepoint, y=value, fill=timepoint)) +
+      geom_violin(position=position_dodge(1), alpha=0.8) +
+      scale_fill_manual(values=c("#999999","#E69F00")) +  
+      labs(y="", x = "In(Relative Abundance)") +
+      geom_boxplot(width=0.3, position=position_dodge(1), alpha=0.5) + 
+      geom_point(alpha=0.5, size=2)+
+      geom_line(aes(group=Sample_ID),color='grey', alpha=0.7)+
+      facet_wrap(variable~ rx, ncol=8) +     
+      stat_compare_means(comparisons = comps, method = 'wilcox.test', paired=T)+
+      theme_classic() +
+      theme(axis.text.x = element_blank(),
+            axis.text.y = element_text(size = 10),
+            axis.title.y =element_text(size = 10),
+            strip.text.x = element_text(size = 12, color = "black", face = "bold.italic"),
+            strip.background =element_rect( linetype="blank"),  # remove background in bac names
+            axis.ticks.x=element_blank(),
+            legend.position="bottom")+coord_cartesian(ylim = c(-12,-2))
+    
+    ggsave(p2, filename=paste0(folder.results, "p2.bottom.pdf"), 
+           width =11, height=10)
+```
+
+
+```{r}
+# add treatment/placebo info
+bifido$rx <- metadata$rx[match(bifido$Sample_ID, metadata$Sample_ID)]
+#remove NA BLQVKQ
+fig3 <- bifido %>% filter(!is.na(rx)) %>% filter(Sample_ID!="ENTXMR")
+
+p3 <- ggplot(fig3, aes(x=timepoint, y=value, fill=timepoint)) +
+      geom_violin(position=position_dodge(1), alpha=0.7) +
+      scale_fill_manual(values=c("#999999","#E69F00")) +  
+      labs(y="", x = "") +
+      geom_boxplot(width=0.3, position=position_dodge(1), alpha=0.5) + 
+      geom_point(alpha=0.5, size=2.5) +
+      geom_line(aes(group=Sample_ID),color='grey', alpha=0.7) +
+      facet_wrap(variable~ rx, ncol=6) +     
+      stat_compare_means(comparisons = comps, method = 'wilcox.test',paired=T) +
+      theme_classic() +
+      theme(axis.text.x = element_blank(),
+            axis.text.y = element_text(size = 10),
+            axis.title.y =element_text(size = 10),
+            strip.text.x = element_text(size = 12, color = "black", face = "bold.italic"),
+            strip.background =element_rect( linetype="blank"),  # remove background in bac names
+            axis.ticks.x=element_blank(),
+            legend.position="bottom")
+
+ggsave(p3, filename=paste0(folder.results, "fig3.v2.pdf"), 
+         width = 10, height=10)
+```
+
+```{r}
+fig4.1path <- data.table$fig4_path_associations
+fig4.2bac <- data.table$fig4_associations_tax
+clinical_path_regressions=fig4.1path
+regressions = unique(fig4.1path$regression)
+clinical_path_regressions$names <- as.data.frame(sub('.*__', '', clinical_path_regressions$microbial_var))
+clinical_path_regressions$significant <- ifelse(clinical_path_regressions$p.value < 0.05, "p.value < 0.05", "not sig")
+
+for(r in regressions){
+  temp  = clinical_path_regressions %>% 
+    filter(regression == r) %>% 
+    mutate(FDR_SIGNIFICANT = if_else(adj<0.05,1,0))
+  ggplot(data = temp,aes(x=estimate,
+                         color=factor(FDR_SIGNIFICANT), 
+                         y=-log(p.value,10))) + 
+    geom_point(alpha=0.5, size=1, aes(color=significant)) +
+    geom_label_repel(data = temp %>% arrange(p.value) %>% filter(p.value<0.05) %>% 
+                       arrange(p.value) %>% head(3),
+                     aes(label = names), 
+                     box.padding =unit(0.1, "lines"),
+                     point.padding = unit(0.1, "lines"),
+                     max.overlaps=100, 
+                     size=2, 
+                     segment.color = 'white')+
+    geom_hline(yintercept = -log10(0.05)) +     
+    scale_color_manual(values = c("666666", "990000", "66FF66")) +
+    xlim(-2.5,2.5) + 
+    ylim(0,6) + 
+    xlab("Association size") + 
+    ylab("-log10(p-value)")+
+    ggtitle(toupper(r))+ 
+    theme(legend.position = "none")+   
+    theme_bw(base_size = 10) 
+
+  ggsave(paste(folder.results,r,'_pathways.pdf',sep=''),width=6,height=6)
+}
+```
+
+```{r}
+#supp fig 5/fig5 kraken2/bracken richness total
+#only richness
+bracken <- alpha.div %>%  
+  filter(variable=="richness") %>%
+  filter(!is.na(value)) %>%
+  mutate(level = fct_relevel(level, 
+            "species", "genus", "family", "order", "class", "phylum", ))
+#define test groups
+comps <- list( c("NOCHANGE-PLACEBO", "IMPROVED-PLACEBO"), 
+                        c("NOCHANGE-TREATMENT", "RESPONDER")) 
+#plor function
+plot.div <- function(x){
+    df<- bracken %>% filter(level==c(x))
+
+    ggplot(df, aes(x=RESP_STATUS, y=value, fill=RESP_STATUS)) +
+    geom_violin(position=position_dodge(1), alpha=0.7) +
+    scale_fill_manual(values=c("#fb9a99","#6a3d9a","#ff7f00","#33a02c")) +  
+    labs(y="", x = "") +
+    geom_boxplot(width=0.3, position=position_dodge(1), alpha=0.5) + 
+    geom_point(alpha=0.7, size=3)+
+    geom_line(aes(group=Sample_ID),color='grey',alpha=0.7) +
+    facet_wrap(level~ timepoint, ncol=2) +     
+    stat_compare_means(comparisons = comps, method = 'wilcox.test')+
+    theme_classic() +
+    theme(axis.text.x = element_blank(),
+          axis.text.y = element_text(size = 10),
+          axis.title.y =element_text(size = 10),
+          strip.text.x = element_text(size = 12, color = "black", face = "bold.italic"),
+          strip.background =element_rect( linetype="blank"),  # remove background in bac names
+          axis.ticks.x=element_blank(),
+          legend.position="bottom")
+    
+}
+a=plot.div("species")
+b=plot.div("genus")
+c=plot.div("family")
+d=plot.div("order")
+e=plot.div("class")
+f=plot.div("phylum")
+
+p.sup5=ggarrange(a, b, c, d, e, f, ncol = 2, nrow = 3)
+ggsave(p.sup5, filename=paste0(folder.results, "suppfig5.v3.pdf"), 
+         width =12, height=15)
+
+p5=ggarrange(a, b, c, ncol = 3, nrow =1)
+ggsave(p5, filename=paste0(folder.results, "fig5.v1.pdf"), 
+         width =12, height=10)
+
+####################
+# metaphlan_richness
+
+metaphlan <- metaphlan_richness %>%  
+  filter(!is.na(value)) %>%
+  mutate(variable = fct_relevel(variable, 
+                             "species", "genus", "family", "order", "class", "phylum", ))
+
+#plot function
+plot.div <- function(x){
+  df<- metaphlan %>% filter(variable==c(x))
+  
+  ggplot(df, aes(x=RESP_STATUS, y=value, fill=RESP_STATUS)) +
+    geom_violin(position=position_dodge(1), alpha=0.7) +
+    scale_fill_manual(values=c("#fb9a99","#6a3d9a","#ff7f00","#33a02c")) +  
+    labs(y="", x = "") +
+    geom_boxplot(width=0.3, position=position_dodge(1), alpha=0.5) + 
+    geom_point(alpha=0.7, size=2.5, position=position_jitterdodge())+
+    geom_line(aes(group=Sample_ID), color='grey', alpha=0.7) +
+    facet_wrap(variable~ timepoint, ncol=2) +     
+    stat_compare_means(comparisons = comps, method = 'wilcox.test')+
+    theme_classic() +
+    theme(axis.text.x = element_blank(),
+          axis.text.y = element_text(size = 10),
+          axis.title.y =element_text(size = 10),
+          strip.text.x = element_text(size = 12, color = "black", face = "bold.italic"),
+          strip.background =element_rect( linetype="blank"),  # remove background in bac names
+          axis.ticks.x=element_blank(),
+          legend.position="bottom")
+    
+}
+a=plot.div("species")
+b=plot.div("genus")
+c=plot.div("family")
+d=plot.div("order")
+e=plot.div("class")
+f=plot.div("phylum")
+
+p.sup2.4=ggarrange(a, b, c, d, e, f, ncol = 2, nrow = 3)
+ggsave(p.sup2.4, filename=paste0(folder.results, "suppfig2-4.v1.pdf"), 
+       width =12, height=15)
+#######
+# metaphylan suppfig3
+comps <- list( c("baseline", "endpoint")) 
+
+#plot function
+plot.div <- function(x){
+  df<- metaphlan %>% filter(variable==c(x))
+
+   ggplot(df, aes(x=timepoint, y=value, fill=timepoint)) +
+      geom_violin(position=position_dodge(1), alpha=0.7) +
+      scale_fill_manual(values=c("#999999","#E69F00")) + 
+      labs(y="", x = "") +
+      geom_boxplot(width=0.3, position=position_dodge(1), alpha=0.5) + 
+      geom_point(alpha=0.7, size=2.5, position=position_jitterdodge())+
+      geom_line(aes(group=Sample_ID),color='grey', alpha=0.7, position=position_dodge(0.1)) +
+      facet_wrap(variable~RESP_STATUS, ncol=4) +      
+      stat_compare_means(comparisons = comps, method = 'wilcox.test', paired=T) +
+      theme_classic() +
+      theme(axis.text.x = element_blank(),
+            axis.text.y = element_text(size = 10),
+            axis.title.y =element_text(size = 10),
+            strip.text.x = element_text(size = 12, color = "black", face = "bold.italic"),
+            strip.background =element_rect( linetype="blank"),  # remove background in bac names
+            axis.ticks.x=element_blank(),
+            legend.position="bottom")
+    
+}
+a=plot.div("species")
+b=plot.div("genus")
+c=plot.div("family")
+d=plot.div("order")
+e=plot.div("class")
+f=plot.div("phylum")
+
+p.sup3=ggarrange(a, b, c, d, e, f, ncol = 2, nrow = 3)
+ggsave(p.sup3, filename=paste0(folder.results, "suppfig3.v1.pdf"), 
+       width =12, height=15)
+```
+
+
