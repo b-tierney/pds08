@@ -2,8 +2,6 @@
 
 library(tidyverse)
 
-#setwd('~/Desktop/google_drive/My Drive/pds08')
-
 ### metadata cleaning
 
 # load data
