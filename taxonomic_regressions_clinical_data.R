@@ -12,8 +12,6 @@ library(ggpubr)
 
 theme_set(theme_cowplot())
 
-setwd('~/Desktop/google_drive/My Drive/pds08/')
-
 metadata = readRDS('pds08_metadata.rds') 
 #demarcate responder vs nonresponder
 metadata = metadata %>% mutate(RESP_STATUS = as.factor(if_else(rx != 'Treatment',"PLACEBO",if_else(d_bm_weekly>=1,'RESPONDER',if_else(abs(d_bm_weekly)<1,'NOCHANGE-TREATMENT','NOCHANGE-TREATMENT')))))
