@@ -12,8 +12,6 @@ library(ggpubr)
 theme_set(theme_cowplot())
 
 
-setwd('~/Desktop/google_drive/My Drive/SEED_HEALTH/PDS08 (1)/')
-
 build_bracken_abmat <- function(brackenfile,level){
   bracken = read.csv(brackenfile,sep='\t',header=T)
   bracken_num = bracken %>% select(name,all_of(colnames(bracken)[!grepl('frac',colnames(bracken))])) %>% column_to_rownames('name') %>% select(-taxonomy_id,-taxonomy_lvl)
