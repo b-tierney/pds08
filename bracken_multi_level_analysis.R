@@ -30,7 +30,7 @@ build_bracken_abmat <- function(brackenfile,level){
   
   colnames(bracken) = gsub('_01','_baseline',colnames(bracken))
   colnames(bracken) = gsub('_02','_endpoint',colnames(bracken))
-  colnames(bracken) = gsub('_family','',colnames(bracken))
+  colnames(bracken) = gsub(paste('\\.',level,sep=''),'',colnames(bracken))
   
   bracken_f = bracken %>% select(-taxonomy_lvl)
   my_comparisons <- list( c("NOCHANGE-PLACEBO", "IMPROVED-PLACEBO"), c("NOCHANGE-TREATMENT", "RESPONDER"))
